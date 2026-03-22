@@ -1,13 +1,14 @@
 import { Box, Text, useApp, useStdout } from "ink";
 import React, { useEffect, useRef, useState } from "react";
 import { Agent } from "../agent";
+import { DB } from "../database";
 import { Heartbeat } from "../heartbeat";
 import { logger } from "../logger";
-import { DB } from "../memory";
 import { TelegramAdapter } from "../telegram";
 import { ChatPanel } from "./ChatPanel";
 import { InputBar } from "./InputBar";
 import { LogsPanel } from "./LogsPanel";
+import { MemoryPanel } from "./MemoryPanel";
 import { useStreamAgent } from "./useStreamAgent";
 
 export function App() {
@@ -16,6 +17,8 @@ export function App() {
 	const rows = stdout?.rows ?? 24;
 	const [ready, setReady] = useState(false);
 	const [startTime] = useState(() => new Date());
+
+	const [screen, setScreen] = useState("memory");
 	const dbRef = useRef<DB | null>(null);
 	const agentRef = useRef<Agent | null>(null);
 	const heartbeatRef = useRef<Heartbeat | null>(null);
@@ -101,30 +104,12 @@ export function App() {
 				return;
 
 			case "/tasks": {
-				if (!dbRef.current) return;
-				const tasks = await dbRef.current.listTasks({ limit: 20 });
-				if (tasks.length === 0) {
-					addSystemMessage("No tasks.");
-				} else {
-					const lines = tasks.map(
-						(t) => `  [${t.status}] P${t.priority} — ${t.title}`,
-					);
-					addSystemMessage(`Tasks:\n${lines.join("\n")}`);
-				}
+				setScreen("tasks");
 				return;
 			}
 
 			case "/memory": {
-				if (!dbRef.current) return;
-				const memories = await dbRef.current.getAllMemories();
-				if (memories.length === 0) {
-					addSystemMessage("No memories stored.");
-				} else {
-					const lines = memories.map(
-						(m) => `  [${m.category}] ${m.key}: ${m.value}`,
-					);
-					addSystemMessage(`Memories:\n${lines.join("\n")}`);
-				}
+				setScreen("memory");
 				return;
 			}
 
@@ -153,13 +138,27 @@ export function App() {
 				{/* Left: Chat */}
 				<Box
 					flexDirection="column"
-					width={"70%"}
+					flexGrow={1}
+					minWidth={"70%"}
 					height={"100%"}
 					borderStyle="single"
 					borderColor="gray"
 				>
-					<ChatPanel messages={messages} isStreaming={isStreaming} />
-					<InputBar onSubmit={handleSubmit} disabled={isStreaming || !ready} />
+					{screen === "chat" && (
+						<>
+							<ChatPanel messages={messages} isStreaming={isStreaming} />
+							<InputBar
+								onSubmit={handleSubmit}
+								disabled={isStreaming || !ready}
+							/>
+						</>
+					)}
+					{screen === "memory" && (
+						<MemoryPanel
+							db={dbRef.current ?? undefined}
+							onBack={() => setScreen("chat")}
+						/>
+					)}
 				</Box>
 
 				{/* Right: Logs */}

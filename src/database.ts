@@ -1,5 +1,6 @@
+import { randomUUID } from "node:crypto";
 import { type Client, createClient } from "@libsql/client";
-import { randomUUID } from "crypto";
+import { buildEmbeddingText, vectorToSql } from "./embeddings";
 import { chatBus } from "./logger";
 import type {
 	InstructionRecord,
@@ -14,7 +15,6 @@ import type {
 	ToolResult,
 	ToolUsage,
 } from "./model";
-import { vectorToSql } from "./embeddings";
 
 // Re-export all model types so existing `import from "./memory"` still works
 export type {
@@ -78,7 +78,7 @@ export class DB {
 				key TEXT NOT NULL UNIQUE,
 				value TEXT NOT NULL,
 				category TEXT NOT NULL DEFAULT 'fact',
-				embedding F32_BLOB(1536),
+				embedding F32_BLOB(1024),
 				access_count INTEGER NOT NULL DEFAULT 0,
 				created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 				updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -122,9 +122,15 @@ export class DB {
 
 		// Idempotent migrations for existing DBs
 		const migrations = [
-			`ALTER TABLE memory ADD COLUMN embedding F32_BLOB(1536)`,
+			`ALTER TABLE memory ADD COLUMN embedding F32_BLOB(1024)`,
 			`ALTER TABLE memory ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP`,
 			`ALTER TABLE memory ADD COLUMN access_count INTEGER DEFAULT 0`,
+			// Rebuild FTS5 table + triggers to add the category column.
+			// DROP first so the IF NOT EXISTS below recreates them with the new schema.
+			`DROP TRIGGER IF EXISTS memory_au`,
+			`DROP TRIGGER IF EXISTS memory_ad`,
+			`DROP TRIGGER IF EXISTS memory_ai`,
+			`DROP TABLE IF EXISTS memory_fts`,
 		];
 		for (const sql of migrations) {
 			try {
@@ -134,22 +140,22 @@ export class DB {
 			}
 		}
 
-		// FTS5 virtual table for BM25 keyword search
+		// FTS5 virtual table for BM25 keyword search (key, value, category indexed)
 		await this.client.executeMultiple(`
 			CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts
-				USING fts5(key, value, content=memory, content_rowid=rowid);
+				USING fts5(key, value, category, content=memory, content_rowid=rowid);
 
 			CREATE TRIGGER IF NOT EXISTS memory_ai AFTER INSERT ON memory BEGIN
-				INSERT INTO memory_fts(rowid, key, value) VALUES (new.rowid, new.key, new.value);
+				INSERT INTO memory_fts(rowid, key, value, category) VALUES (new.rowid, new.key, new.value, new.category);
 			END;
 
 			CREATE TRIGGER IF NOT EXISTS memory_ad AFTER DELETE ON memory BEGIN
-				INSERT INTO memory_fts(memory_fts, rowid, key, value) VALUES ('delete', old.rowid, old.key, old.value);
+				INSERT INTO memory_fts(memory_fts, rowid, key, value, category) VALUES ('delete', old.rowid, old.key, old.value, old.category);
 			END;
 
 			CREATE TRIGGER IF NOT EXISTS memory_au AFTER UPDATE ON memory BEGIN
-				INSERT INTO memory_fts(memory_fts, rowid, key, value) VALUES ('delete', old.rowid, old.key, old.value);
-				INSERT INTO memory_fts(rowid, key, value) VALUES (new.rowid, new.key, new.value);
+				INSERT INTO memory_fts(memory_fts, rowid, key, value, category) VALUES ('delete', old.rowid, old.key, old.value, old.category);
+				INSERT INTO memory_fts(rowid, key, value, category) VALUES (new.rowid, new.key, new.value, new.category);
 			END;
 		`);
 	}
@@ -253,6 +259,16 @@ export class DB {
 		await this.client.execute("DELETE FROM messages");
 	}
 
+	async clearAllData(): Promise<void> {
+		await this.client.executeMultiple(`
+      DELETE FROM tool_usage;
+      DELETE FROM instructions;
+      DELETE FROM tasks;
+      DELETE FROM memory;
+      DELETE FROM messages;
+    `);
+	}
+
 	// ─── Memory ────────────────────────────────────────────────────────────
 
 	async remember(
@@ -350,16 +366,23 @@ export class DB {
 		}));
 	}
 
-	async bm25Search(query: string, limit = 10): Promise<ScoredMemory[]> {
-		const result = await this.client.execute({
-			sql: `SELECT m.*, bm25(memory_fts) AS rank
+	async bm25Search(
+		query: string,
+		limit = 10,
+		category?: MemoryCategory,
+	): Promise<ScoredMemory[]> {
+		let sql = `SELECT m.*, bm25(memory_fts) AS rank
 			      FROM memory_fts f
 			      JOIN memory m ON m.rowid = f.rowid
-			      WHERE memory_fts MATCH ?
-			      ORDER BY rank
-			      LIMIT ?`,
-			args: [query, limit],
-		});
+			      WHERE memory_fts MATCH ?`;
+		const args: (string | number)[] = [query];
+		if (category) {
+			sql += ` AND m.category = ?`;
+			args.push(category);
+		}
+		sql += ` ORDER BY rank LIMIT ?`;
+		args.push(limit);
+		const result = await this.client.execute({ sql, args });
 		return result.rows.map((row) => ({
 			...rowToMemory(row),
 			// BM25 returns negative scores (lower = better), normalize to 0-1
@@ -379,7 +402,7 @@ export class DB {
 		// Run both searches in parallel
 		const [vectorResults, bm25Results] = await Promise.all([
 			this.vectorSearch(queryEmbedding, limit * 2, category),
-			this.bm25Search(query, limit * 2),
+			this.bm25Search(query, limit * 2, category),
 		]);
 
 		// Merge and de-duplicate by key
@@ -417,19 +440,44 @@ export class DB {
 	 */
 	async backfillEmbeddings(
 		embedFn: (text: string) => Promise<number[]>,
+		onProgress?: (completed: number, total: number, key: string) => void,
 	): Promise<number> {
 		const result = await this.client.execute(
-			`SELECT id, key, value FROM memory WHERE embedding IS NULL`,
+			`SELECT id, key, value, category FROM memory WHERE embedding IS NULL`,
 		);
+		return this.reindexRows(result.rows, embedFn, onProgress);
+	}
+
+	async reindexAllEmbeddings(
+		embedFn: (text: string) => Promise<number[]>,
+		onProgress?: (completed: number, total: number, key: string) => void,
+	): Promise<number> {
+		const result = await this.client.execute(
+			`SELECT id, key, value, category FROM memory`,
+		);
+		return this.reindexRows(result.rows, embedFn, onProgress);
+	}
+
+	private async reindexRows(
+		rows: { [column: string]: unknown }[],
+		embedFn: (text: string) => Promise<number[]>,
+		onProgress?: (completed: number, total: number, key: string) => void,
+	): Promise<number> {
+		const total = rows.length;
 		let count = 0;
-		for (const row of result.rows) {
-			const text = `${row.key}: ${row.value}`;
+		for (const row of rows) {
+			const text = buildEmbeddingText(
+				row.key as string,
+				row.value as string,
+				row.category as string,
+			);
 			const embedding = await embedFn(text);
 			await this.client.execute({
 				sql: `UPDATE memory SET embedding = vector(?) WHERE id = ?`,
 				args: [vectorToSql(embedding), row.id as string],
 			});
 			count++;
+			onProgress?.(count, total, row.key as string);
 		}
 		return count;
 	}

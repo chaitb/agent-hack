@@ -1,4 +1,7 @@
 import { anthropic } from "@ai-sdk/anthropic";
+
+import { gateway } from "@ai-sdk/gateway";
+import type { LanguageModelV3 } from "@ai-sdk/provider";
 import {
 	generateText,
 	hasToolCall,
@@ -8,8 +11,8 @@ import {
 } from "ai";
 import { readdir, readFile } from "fs/promises";
 import { join, resolve } from "path";
+import type { DB, MessageSource } from "./database";
 import { logger } from "./logger";
-import type { DB, MessageSource } from "./memory";
 import { createAllTools } from "./tools";
 import type { CommChannels } from "./tools/communication";
 
@@ -19,11 +22,15 @@ export class Agent {
 	private db: DB;
 	private tools: ReturnType<typeof createAllTools>;
 	private channels: CommChannels;
+	private models: Record<"main", LanguageModelV3>;
 
 	constructor(db: DB, channels: CommChannels = {}) {
 		this.db = db;
 		this.channels = channels;
 		this.tools = createAllTools(db, channels);
+		this.models = {
+			main: gateway("anthropic/claude-sonnet-4-20250514"),
+		};
 	}
 
 	/** Update channels after construction (e.g. once Telegram connects) */
@@ -63,10 +70,7 @@ export class Agent {
 
 		// 3. TIER 2: Recent context memories (top 5 by recency)
 		if (charsUsed < CHAR_BUDGET) {
-			const recentContext = await this.db.getMemoriesByCategory(
-				"context",
-				5,
-			);
+			const recentContext = await this.db.getMemoriesByCategory("context", 5);
 			if (recentContext.length > 0) {
 				const lines: string[] = ["## Recent Context"];
 				for (const m of recentContext) {
@@ -129,7 +133,11 @@ export class Agent {
 	 * Run the agent on input from any source.
 	 * Returns the final text response.
 	 */
-	async run(input: string, source: MessageSource = "cli", metadata?: Record<string, unknown>): Promise<string> {
+	async run(
+		input: string,
+		source: MessageSource = "cli",
+		metadata?: Record<string, unknown>,
+	): Promise<string> {
 		// Save user message to timeline
 		await this.db.saveMessage("user", input, source, metadata);
 
@@ -151,7 +159,7 @@ export class Agent {
 
 		// Run the agent loop
 		const result = await generateText({
-			model: anthropic("claude-sonnet-4-20250514"),
+			model: this.models.main,
 			system,
 			messages,
 			tools: this.tools,
@@ -202,7 +210,7 @@ export class Agent {
 			}));
 
 		const result = streamText({
-			model: anthropic("claude-sonnet-4-20250514"),
+			model: this.models.main,
 			system,
 			messages,
 			tools: this.tools,

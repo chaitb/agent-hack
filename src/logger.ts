@@ -1,8 +1,13 @@
 import { EventEmitter } from "events";
 import { appendFile, mkdir } from "fs/promises";
-import { resolve, dirname } from "path";
+import { dirname, resolve } from "path";
 
-export type LogCategory = "tool" | "heartbeat" | "system" | "communication";
+export type LogCategory =
+	| "tool"
+	| "heartbeat"
+	| "system"
+	| "communication"
+	| "info";
 
 export interface LogEntry {
 	id: number;
