@@ -1,40 +1,52 @@
 {
-	"name": "agent-hack",
-	"module": "src/index.tsx",
-	"type": "module",
-	"private": true,
-	"scripts": {
-		"dev": "bun run --watch src/index.tsx",
-		"pocket": "bun run src/cli.ts",
-		"start": "bun src/index.tsx",
-		"build": "bun build src/index.tsx --outdir dist",
-		"test": "bun test"
-	},
-	"devDependencies": {
-		"@types/bun": "latest",
-		"@types/node": "^25.3.1",
-		"@types/cli-progress": "^3.11.6",
-		"@types/yargs": "^17.0.35"
-	},
-	"peerDependencies": {
-		"typescript": "^5"
-	},
-	"dependencies": {
-		"@ai-sdk/anthropic": "^3.0.47",
-		"@ai-sdk/gateway": "^3.0.59",
-		"@ai-sdk/openai": "^3.0.34",
-		"@libsql/client": "^0.17.0",
-		"@notionhq/client": "^5.9.0",
-		"@types/react": "^19.2.14",
-		"ai": "^6.0.101",
-		"chalk": "^5.6.2",
-		"cli-progress": "^3.12.0",
-		"dotenv": "^17.3.1",
-		"grammy": "^1.40.1",
-		"ink": "^6.8.0",
-		"ink-text-input": "^6.0.0",
-		"react": "^19.2.4",
-		"yargs": "^18.0.0",
-		"zod": "^4.3.6"
-	}
+  "name": "agent-hack",
+  "module": "src/interfaces/web/server.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun run dev:tui",
+    "dev:tui": "bun run --watch src/interfaces/tui/index.tsx",
+    "dev:web": "mkdir -p .generated/web && bun build src/interfaces/web/client.tsx --outfile .generated/web/client.js --target browser --watch & bunx tailwindcss -i src/interfaces/web/styles.css -o .generated/web/app.css --watch & bun --watch src/interfaces/web/server.ts",
+    "dev:css": "mkdir -p .generated/web && bunx tailwindcss -i src/interfaces/web/styles.css -o .generated/web/app.css --watch",
+    "pocket": "bun run src/interfaces/cli.ts",
+    "start": "bun src/interfaces/web/server.ts",
+    "start:tui": "bun src/interfaces/tui/index.tsx",
+    "start:web": "bun src/interfaces/web/server.ts",
+    "build": "bun run build:web",
+    "build:tui": "bun build src/interfaces/tui/index.tsx --outdir dist/tui --target bun --external react-devtools-core",
+    "build:web": "mkdir -p dist/web && bun build src/interfaces/web/client.tsx --outfile dist/web/client.js --target browser && bunx tailwindcss -i src/interfaces/web/styles.css -o dist/web/app.css",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.2.2",
+    "@types/bun": "latest",
+    "@types/cli-progress": "^3.11.6",
+    "@types/node": "^25.3.1",
+    "@types/react-dom": "^19.2.3",
+    "@types/yargs": "^17.0.35"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.47",
+    "@ai-sdk/fireworks": "^2.0.42",
+    "@ai-sdk/gateway": "^3.0.59",
+    "@ai-sdk/openai": "^3.0.34",
+    "@libsql/client": "^0.17.0",
+    "@notionhq/client": "^5.9.0",
+    "@types/react": "^19.2.14",
+    "ai": "^6.0.101",
+    "chalk": "^5.6.2",
+    "cli-progress": "^3.12.0",
+    "dotenv": "^17.3.1",
+    "grammy": "^1.40.1",
+    "ink": "^6.8.0",
+    "ink-text-input": "^6.0.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwindcss": "^4.2.2",
+    "yargs": "^18.0.0",
+    "zod": "^4.3.6"
+  }
 }
