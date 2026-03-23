@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { type Client, createClient } from "@libsql/client";
-import { buildEmbeddingText, vectorToSql } from "./embeddings";
 import { chatBus } from "../core/logger";
 import type {
 	InstructionRecord,
@@ -15,6 +14,7 @@ import type {
 	ToolResult,
 	ToolUsage,
 } from "../core/model";
+import { buildEmbeddingText, vectorToSql } from "./embeddings";
 
 // Re-export all model types so existing `import from "./memory"` still works
 export type {
@@ -244,10 +244,7 @@ export class DB {
 		return result.rows.reverse().map(rowToMessage);
 	}
 
-	async hasMessageWithMetadata(
-		key: string,
-		value: string | number,
-	): Promise<boolean> {
+	async hasMessageWithMetadata(key: string, value: string | number): Promise<boolean> {
 		const result = await this.client.execute({
 			sql: `SELECT 1 FROM messages WHERE json_extract(metadata, ?) = ? LIMIT 1`,
 			args: [`$.${key}`, String(value)],
@@ -311,7 +308,7 @@ export class DB {
 			args: [key],
 		});
 		if (result.rows.length === 0) return null;
-		return result.rows[0]!.value as string;
+		return result.rows[0]?.value as string;
 	}
 
 	async forget(key: string): Promise<boolean> {
@@ -323,16 +320,11 @@ export class DB {
 	}
 
 	async getAllMemories(): Promise<Memory[]> {
-		const result = await this.client.execute(
-			`SELECT * FROM memory ORDER BY updated_at DESC`,
-		);
+		const result = await this.client.execute(`SELECT * FROM memory ORDER BY updated_at DESC`);
 		return result.rows.map(rowToMemory);
 	}
 
-	async getMemoriesByCategory(
-		category: MemoryCategory,
-		limit?: number,
-	): Promise<Memory[]> {
+	async getMemoriesByCategory(category: MemoryCategory, limit?: number): Promise<Memory[]> {
 		let sql = `SELECT * FROM memory WHERE category = ? ORDER BY updated_at DESC`;
 		const args: (string | number)[] = [category];
 		if (limit) {
@@ -366,11 +358,7 @@ export class DB {
 		}));
 	}
 
-	async bm25Search(
-		query: string,
-		limit = 10,
-		category?: MemoryCategory,
-	): Promise<ScoredMemory[]> {
+	async bm25Search(query: string, limit = 10, category?: MemoryCategory): Promise<ScoredMemory[]> {
 		let sql = `SELECT m.*, bm25(memory_fts) AS rank
 			      FROM memory_fts f
 			      JOIN memory m ON m.rowid = f.rowid
@@ -452,9 +440,7 @@ export class DB {
 		embedFn: (text: string) => Promise<number[]>,
 		onProgress?: (completed: number, total: number, key: string) => void,
 	): Promise<number> {
-		const result = await this.client.execute(
-			`SELECT id, key, value, category FROM memory`,
-		);
+		const result = await this.client.execute(`SELECT id, key, value, category FROM memory`);
 		return this.reindexRows(result.rows, embedFn, onProgress);
 	}
 
@@ -519,10 +505,7 @@ export class DB {
 		return rowToTask(result.rows[0]!);
 	}
 
-	async listTasks(filter?: {
-		status?: TaskStatus;
-		limit?: number;
-	}): Promise<Task[]> {
+	async listTasks(filter?: { status?: TaskStatus; limit?: number }): Promise<Task[]> {
 		let sql = `SELECT * FROM tasks`;
 		const args: (string | number)[] = [];
 		if (filter?.status) {
@@ -567,11 +550,7 @@ export class DB {
 		for (const [key, value] of Object.entries(updates)) {
 			if (value !== undefined) {
 				sets.push(`${key} = ?`);
-				args.push(
-					value instanceof Date
-						? value.toISOString()
-						: (value as string | number | null),
-				);
+				args.push(value instanceof Date ? value.toISOString() : (value as string | number | null));
 			}
 		}
 		if (sets.length === 0) return this.getTask(id);
@@ -587,10 +566,7 @@ export class DB {
 
 	// ─── Instructions ──────────────────────────────────────────────────────
 
-	async upsertInstruction(
-		filename: string,
-		description: string,
-	): Promise<void> {
+	async upsertInstruction(filename: string, description: string): Promise<void> {
 		const id = randomUUID();
 		await this.client.execute({
 			sql: `INSERT INTO instructions (id, filename, description, updated_at) VALUES (?, ?, ?, ?)
@@ -600,9 +576,7 @@ export class DB {
 	}
 
 	async listInstructions(): Promise<InstructionRecord[]> {
-		const result = await this.client.execute(
-			`SELECT * FROM instructions ORDER BY filename`,
-		);
+		const result = await this.client.execute(`SELECT * FROM instructions ORDER BY filename`);
 		return result.rows.map((row) => ({
 			id: row.id as string,
 			filename: row.filename as string,
@@ -680,9 +654,7 @@ function rowToMemory(row: Record<string, unknown>): Memory {
 		value: row.value as string,
 		category: row.category as MemoryCategory,
 		access_count: (row.access_count as number) ?? 0,
-		created_at: new Date(
-			(row.created_at as string) ?? (row.updated_at as string),
-		),
+		created_at: new Date((row.created_at as string) ?? (row.updated_at as string)),
 		updated_at: new Date(row.updated_at as string),
 	};
 }
@@ -694,9 +666,7 @@ function rowToTask(row: Record<string, unknown>): Task {
 		description: row.description as string,
 		status: row.status as TaskStatus,
 		priority: row.priority as number,
-		scheduled_at: row.scheduled_at
-			? new Date(row.scheduled_at as string)
-			: null,
+		scheduled_at: row.scheduled_at ? new Date(row.scheduled_at as string) : null,
 		recurrence: row.recurrence as string | null,
 		last_run_at: row.last_run_at ? new Date(row.last_run_at as string) : null,
 		result: row.result as string | null,

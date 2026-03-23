@@ -79,7 +79,7 @@
 	*::before,
 	*::after {
 		scroll-behavior: auto;
-		animation: none !important;
-		transition: none !important;
+		animation: none;
+		transition: none;
 	}
 }

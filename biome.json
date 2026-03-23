@@ -7,14 +7,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": [
-      "**",
-      "!dist",
-      "!.generated",
-      "!coverage",
-      "!logs",
-      "!Zen Chat Interface/screen.png"
-    ]
+    "includes": ["**", "!dist", "!.generated", "!coverage", "!logs", "!Zen Chat Interface"]
   },
   "formatter": {
     "enabled": true,
@@ -24,7 +17,10 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "recommended": true,
+      "suspicious": {
+        "noAssignInExpressions": "warn"
+      }
     }
   },
   "javascript": {

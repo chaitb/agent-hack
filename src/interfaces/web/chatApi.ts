@@ -90,9 +90,7 @@ export async function streamChat(options: StreamChatOptions): Promise<void> {
 						break;
 					case "error":
 						options.onError?.(
-							typeof payload.message === "string"
-								? payload.message
-								: "Unknown streaming error.",
+							typeof payload.message === "string" ? payload.message : "Unknown streaming error.",
 						);
 						break;
 					default:

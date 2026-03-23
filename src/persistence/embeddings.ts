@@ -1,4 +1,3 @@
-import { fireworks } from "@ai-sdk/fireworks";
 import { gateway } from "@ai-sdk/gateway";
 import { embed } from "ai";
 import { logger } from "../core/logger";
@@ -11,13 +10,9 @@ const MODEL = gateway.embedding("mistral/mistral-embed");
  * Incorporates category, key, and value so the vector captures all dimensions.
  * Format: "[category] key: value"
  */
-export function buildEmbeddingText(
-	key: string,
-	value: string,
-	category: string,
-): string {
+export function buildEmbeddingText(key: string, value: string, category: string): string {
 	const txt = `[${category}] ${key}: ${value}`;
-	logger.push("info", "Embedding text: " + txt);
+	logger.push("info", `Embedding text: ${txt}`);
 	return txt;
 }
 

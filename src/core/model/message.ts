@@ -1,11 +1,5 @@
 export type MessageRole = "user" | "assistant" | "system" | "tool";
-export type MessageSource =
-	| "cli"
-	| "web"
-	| "telegram"
-	| "email"
-	| "heartbeat"
-	| "task";
+export type MessageSource = "cli" | "web" | "telegram" | "email" | "heartbeat" | "task";
 
 export interface Message {
 	id: string;

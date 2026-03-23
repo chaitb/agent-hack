@@ -2,7 +2,11 @@ import "dotenv/config";
 import { resolve } from "node:path";
 import { Hono } from "hono";
 import type { ChatService } from "../../core/chat";
+import { type LogCategory, logger } from "../../core/logger";
+import type { DB } from "../../persistence/database";
+import { getEmbedding } from "../../persistence/embeddings";
 import { createAppRuntime } from "../../runtime/createAppRuntime";
+import { type ChatPageAssets, renderChatPage } from "./page";
 
 const SSE_HEADERS = {
 	"Cache-Control": "no-cache, no-transform",
@@ -12,6 +16,7 @@ const SSE_HEADERS = {
 
 export interface WebHandlerDependencies {
 	chatService: Pick<ChatService, "getRecentMessages" | "streamReply">;
+	db: Pick<DB, "getAllMemories" | "getMemoriesByCategory" | "recall" | "vectorSearch">;
 	assetDir?: string;
 }
 
@@ -21,6 +26,25 @@ function resolveAssetDir(explicitDir?: string): string {
 	}
 
 	return resolve(process.cwd(), "dist/web");
+}
+
+function stripTrailingSlash(value: string): string {
+	return value.endsWith("/") ? value.slice(0, -1) : value;
+}
+
+function resolvePageAssets(viteDevServerUrl?: string): ChatPageAssets {
+	if (viteDevServerUrl) {
+		const origin = stripTrailingSlash(viteDevServerUrl);
+		return {
+			viteClientSrc: `${origin}/@vite/client`,
+			clientScriptSrc: `${origin}/src/interfaces/web/client.tsx`,
+		};
+	}
+
+	return {
+		cssHref: "/assets/app.css",
+		clientScriptSrc: "/assets/client.js",
+	};
 }
 
 function contentTypeForPath(pathname: string): string {
@@ -44,6 +68,33 @@ function parseMessageLimit(raw: string | undefined): number {
 	}
 
 	return Math.min(100, Math.max(1, Math.trunc(parsed)));
+}
+
+function parsePositiveLimit(raw: string | undefined, fallback: number, max: number): number {
+	if (!raw) {
+		return fallback;
+	}
+
+	const parsed = Number(raw);
+	if (!Number.isFinite(parsed)) {
+		return fallback;
+	}
+
+	return Math.min(max, Math.max(1, Math.trunc(parsed)));
+}
+
+function isMemoryCategory(value: string): value is "fact" | "preference" | "skill" | "context" {
+	return value === "fact" || value === "preference" || value === "skill" || value === "context";
+}
+
+function isLogCategory(value: string): value is LogCategory {
+	return (
+		value === "tool" ||
+		value === "heartbeat" ||
+		value === "system" ||
+		value === "communication" ||
+		value === "info"
+	);
 }
 
 function formatEvent(event: string, data: unknown): Uint8Array {
@@ -98,18 +149,31 @@ async function serveAsset(assetDir: string, pathname: string): Promise<Response>
 	});
 }
 
-export function createWebHandler({ chatService, assetDir }: WebHandlerDependencies) {
+export function createWebHandler({ chatService, db, assetDir }: WebHandlerDependencies) {
 	const resolvedAssetDir = resolveAssetDir(assetDir);
+	const webDevServerUrl = process.env.WEB_DEV_SERVER_URL;
+	const pageAssets = resolvePageAssets(webDevServerUrl);
 	const app = new Hono();
 
+	const serveWebUi = () =>
+		new Response(renderChatPage([], pageAssets), {
+			headers: {
+				"Content-Type": "text/html; charset=utf-8",
+			},
+		});
+
 	app.get("/", (context) => {
-		const webDevServerUrl = process.env.WEB_DEV_SERVER_URL;
 		if (webDevServerUrl) {
 			return context.redirect(webDevServerUrl, 302);
 		}
 
-		return context.text("Web UI is served separately. Use /api endpoints.", 404);
+		return serveWebUi();
 	});
+
+	app.get("/chat", () => serveWebUi());
+	app.get("/memory", () => serveWebUi());
+	app.get("/recall", () => serveWebUi());
+	app.get("/logs", () => serveWebUi());
 
 	app.get("/assets/:fileName", async (context) => {
 		if (process.env.WEB_DEV_SERVER_URL) {
@@ -128,6 +192,50 @@ export function createWebHandler({ chatService, assetDir }: WebHandlerDependenci
 		const limit = parseMessageLimit(context.req.query("limit"));
 		const messages = await chatService.getRecentMessages(limit);
 		return context.json({ messages });
+	});
+
+	app.get("/api/memory", async (context) => {
+		const category = context.req.query("category");
+		const limit = parsePositiveLimit(context.req.query("limit"), 100, 500);
+
+		const memories =
+			category && isMemoryCategory(category)
+				? await db.getMemoriesByCategory(category, limit)
+				: (await db.getAllMemories()).slice(0, limit);
+
+		return context.json({ memories });
+	});
+
+	app.post("/api/memory/recall", async (context) => {
+		let payload: unknown;
+		try {
+			payload = await context.req.json();
+		} catch {
+			return context.json({ error: "Invalid JSON body." }, 400);
+		}
+
+		const key =
+			payload && typeof payload === "object" && "key" in payload && typeof payload.key === "string"
+				? payload.key.trim()
+				: "";
+
+		if (!key) {
+			return context.json({ error: "key is required." }, 400);
+		}
+
+		const queryEmbedding = await getEmbedding(key);
+		const value = await db.vectorSearch(queryEmbedding);
+		return context.json({ key, value, found: value !== null });
+	});
+
+	app.get("/api/logs", (context) => {
+		const category = context.req.query("category");
+		const limit = parsePositiveLimit(context.req.query("limit"), 200, 2000);
+
+		const entries =
+			category && isLogCategory(category) ? logger.getByCategory(category) : logger.getAll();
+
+		return context.json({ logs: entries.slice(-limit) });
 	});
 
 	app.post("/api/chat", async (context) => {
@@ -161,7 +269,7 @@ export function createWebHandler({ chatService, assetDir }: WebHandlerDependenci
 export async function startWebServer() {
 	const runtime = await createAppRuntime({
 		startHeartbeat: false,
-		startTelegram: true,
+		startTelegram: false,
 	});
 
 	const port = Number(process.env.PORT ?? 3000);
@@ -169,6 +277,7 @@ export async function startWebServer() {
 		port,
 		fetch: createWebHandler({
 			chatService: runtime.chatService,
+			db: runtime.db,
 		}),
 	});
 

@@ -1,18 +1,11 @@
-import { fireworks } from "@ai-sdk/fireworks";
+import { readdir, readFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { gateway } from "@ai-sdk/gateway";
 import type { LanguageModelV3 } from "@ai-sdk/provider";
-import {
-	generateText,
-	hasToolCall,
-	type ModelMessage,
-	stepCountIs,
-	streamText,
-} from "ai";
-import { readdir, readFile } from "fs/promises";
-import { join, resolve } from "path";
-import type { MessageSource } from "./model";
-import { logger } from "./logger";
+import { generateText, hasToolCall, type ModelMessage, stepCountIs, streamText } from "ai";
 import type { DB } from "../persistence/database";
+import { logger } from "./logger";
+import type { MessageSource } from "./model";
 import { createAllTools } from "./tools";
 import type { CommChannels } from "./tools/communication";
 
@@ -127,7 +120,7 @@ export class Agent {
 		} catch {
 			return null;
 		}
-		return parts.length > 0 ? "## Instructions\n" + parts.join("\n\n") : null;
+		return parts.length > 0 ? `## Instructions\n${parts.join("\n\n")}` : null;
 	}
 
 	/**
@@ -187,10 +180,7 @@ export class Agent {
 	/**
 	 * Run the agent with streaming output.
 	 */
-	async *stream(
-		input: string,
-		source: MessageSource = "cli",
-	): AsyncGenerator<string> {
+	async *stream(input: string, source: MessageSource = "cli"): AsyncGenerator<string> {
 		// Save user message to timeline
 		await this.db.saveMessage("user", input, source);
 

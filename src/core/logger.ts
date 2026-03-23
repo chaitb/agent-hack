@@ -1,13 +1,8 @@
-import { EventEmitter } from "events";
-import { appendFile, mkdir } from "fs/promises";
-import { dirname, resolve } from "path";
+import { EventEmitter } from "node:events";
+import { appendFile, mkdir } from "node:fs/promises";
+import { resolve } from "node:path";
 
-export type LogCategory =
-	| "tool"
-	| "heartbeat"
-	| "system"
-	| "communication"
-	| "info";
+export type LogCategory = "tool" | "heartbeat" | "system" | "communication" | "info";
 
 export interface LogEntry {
 	id: number;
@@ -72,10 +67,7 @@ class ChatBus extends EventEmitter {
 	push(event: ChatEvent): void {
 		this.emit("message", event);
 		writeToFile(
-			formatLine(
-				"chat",
-				`[${event.source}] ${event.role}: ${event.content.slice(0, 500)}`,
-			),
+			formatLine("chat", `[${event.source}] ${event.role}: ${event.content.slice(0, 500)}`),
 		);
 	}
 }

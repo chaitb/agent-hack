@@ -1,6 +1,6 @@
 import { Box, Text } from "ink";
 import TextInput from "ink-text-input";
-import React, { useState } from "react";
+import { useState } from "react";
 
 interface InputBarProps {
 	onSubmit: (text: string) => void;
@@ -20,9 +20,7 @@ export function InputBar({ onSubmit, disabled }: InputBarProps) {
 
 	const showPalette = value.startsWith("/") && !value.includes(" ");
 	const filter = value.slice(1).toLowerCase();
-	const filtered = showPalette
-		? ALL_COMMANDS.filter((c) => c.name.slice(1).includes(filter))
-		: [];
+	const filtered = showPalette ? ALL_COMMANDS.filter((c) => c.name.slice(1).includes(filter)) : [];
 
 	const handleSubmit = (text: string) => {
 		if (!text.trim() || disabled) return;

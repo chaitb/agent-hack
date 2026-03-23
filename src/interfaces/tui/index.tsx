@@ -1,5 +1,4 @@
 import "dotenv/config";
-import React from "react";
 import { render } from "ink";
 import { logger } from "../../core/logger";
 import { TuiApp } from "./App";

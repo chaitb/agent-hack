@@ -19,9 +19,7 @@ export interface AppRuntime {
 	dispose(): Promise<void>;
 }
 
-export async function createAppRuntime(
-	options: CreateAppRuntimeOptions = {},
-): Promise<AppRuntime> {
+export async function createAppRuntime(options: CreateAppRuntimeOptions = {}): Promise<AppRuntime> {
 	const { startHeartbeat = false, startTelegram = false } = options;
 	const db = new DB();
 	await db.initialize({ drop: false });
@@ -36,7 +34,7 @@ export async function createAppRuntime(
 			telegram = new TelegramAdapter(agent, db);
 			telegram.start();
 			agent.setChannels({
-				telegram: (message) => telegram!.send(message),
+				telegram: (message) => telegram?.send(message),
 			});
 		} catch {
 			logger.push("system", "Telegram: no token, skipping");

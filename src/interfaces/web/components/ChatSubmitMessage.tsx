@@ -32,7 +32,7 @@ export function ChatSubmitMessage({
 				className="min-h-[5.5rem] w-full resize-y rounded-2xl border border-muted-primary/35 bg-bg-muted px-4 py-4 text-primary shadow-[inset_0_1px_2px_color-mix(in_srgb,var(--bg)_25%,transparent)] outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
 			/>
 			<div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-				<p className={"m-0 text-[0.8rem] text-muted-primary " + uiFontClass}>
+				<p className={`m-0 text-[0.8rem] text-muted-primary ${uiFontClass}`}>
 					{error ?? "POST /api/chat streams tokens into this pane."}
 				</p>
 				<button

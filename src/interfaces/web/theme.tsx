@@ -42,7 +42,7 @@ function readInitialMode(): ThemeMode {
 	return "system";
 }
 
-function resolveTheme(mode: ThemeMode): ResolvedTheme {
+function _resolveTheme(mode: ThemeMode): ResolvedTheme {
 	return mode === "system" ? getSystemTheme() : mode;
 }
 

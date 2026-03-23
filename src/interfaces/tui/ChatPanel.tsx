@@ -1,5 +1,4 @@
 import { Box, Spacer, Text, useStdout } from "ink";
-import React from "react";
 import type { ChatMessage } from "../../core/chat";
 
 interface ChatPanelProps {

@@ -1,6 +1,6 @@
+import type { DB } from "../persistence/database";
 import type { Agent } from "./agent";
 import type { Message, MessageRole, MessageSource } from "./model";
-import type { DB } from "../persistence/database";
 
 export type ChatMessage = Pick<Message, "id" | "role" | "content" | "source">;
 
@@ -32,10 +32,7 @@ export class ChatService {
 		return recent.map(toChatMessage).filter((message): message is ChatMessage => Boolean(message));
 	}
 
-	streamReply(
-		input: string,
-		source: MessageSource,
-	): AsyncGenerator<string> {
+	streamReply(input: string, source: MessageSource): AsyncGenerator<string> {
 		return this.agent.stream(input, source);
 	}
 }
