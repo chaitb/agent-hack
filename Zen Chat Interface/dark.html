@@ -1,0 +1,441 @@
+<!doctype html>
+
+<html class="dark" lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta content="width=device-width, initial-scale=1.0" name="viewport" />
+		<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+		<link
+			href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&amp;family=Raleway:wght@300;400;500;600;700&amp;display=swap"
+			rel="stylesheet"
+		/>
+		<link
+			href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+			rel="stylesheet"
+		/>
+		<style type="text/tailwindcss">
+			:root {
+				--bg-deep: #121212;
+				--bg-mellow: #1a1a1a;
+				--bg-panel: #242424;
+				--text-primary: #e0e0e0;
+				--text-muted: #a0a0a0;
+				--accent-primary: #8a84ad;
+				--accent-secondary: #b19cd9;
+				--accent-rose: #d98880;
+				--border-soft: #333333;
+				--radius-main: 8px;
+			}
+			body {
+				font-family: "Newsreader", serif;
+				background-color: var(--bg-deep);
+				color: var(--text-primary);
+			}
+			h1,
+			h2,
+			h3,
+			h4,
+			.ui-font {
+				font-family: "Raleway", sans-serif;
+			}
+			.content-card {
+				background: var(--bg-panel);
+				border: 1px solid var(--border-soft);
+				border-radius: var(--radius-main);
+				box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+			}
+			.custom-scrollbar::-webkit-scrollbar {
+				width: 5px;
+			}
+			.custom-scrollbar::-webkit-scrollbar-track {
+				background: transparent;
+			}
+			.custom-scrollbar::-webkit-scrollbar-thumb {
+				background: var(--accent-primary);
+				border-radius: 10px;
+			}
+			.chat-bubble-agent {
+				background: #2d2d2d;
+				border: 1px solid var(--border-soft);
+				border-bottom-left-radius: 2px;
+				color: var(--text-primary);
+			}
+			.chat-bubble-user {
+				background: var(--accent-primary);
+				color: #121212;
+				border-bottom-right-radius: 2px;
+			}
+		</style>
+	</head>
+	<body class="h-screen flex flex-col overflow-hidden">
+		<header
+			class="h-16 border-b border-[var(--border-soft)] bg-[#121212]/90 backdrop-blur-md flex items-center justify-between px-8 z-50 shrink-0"
+		>
+			<div class="flex items-center gap-12">
+				<span
+					class="ui-font font-bold text-lg tracking-[0.15em] text-[var(--text-primary)]"
+					>MNEMOSYNE // ATLAS</span
+				>
+				<nav class="hidden md:flex items-center space-x-10">
+					<a
+						class="ui-font text-sm font-600 border-b-2 border-[var(--accent-primary)] pb-1 text-[var(--text-primary)]"
+						href="#"
+						>Memory</a
+					>
+					<a
+						class="ui-font text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+						href="#"
+						>Chat</a
+					>
+					<a
+						class="ui-font text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+						href="#"
+						>Logs</a
+					>
+					<a
+						class="ui-font text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+						href="#"
+						>Settings</a
+					>
+				</nav>
+			</div>
+			<div class="flex items-center gap-6">
+				<button
+					class="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+				>
+					<span class="material-symbols-outlined">search</span>
+				</button>
+				<div
+					class="h-9 w-9 rounded-full bg-[var(--accent-primary)]/30 border border-[var(--accent-primary)] flex items-center justify-center text-xs font-bold ui-font text-[var(--text-primary)]"
+				>
+					JD
+				</div>
+			</div>
+		</header>
+		<main class="flex-1 flex overflow-hidden">
+			<section
+				class="flex-1 overflow-y-auto custom-scrollbar bg-[var(--bg-deep)] p-8 lg:p-12"
+			>
+				<div class="max-w-4xl mx-auto space-y-10">
+					<header class="space-y-3">
+						<div
+							class="flex items-center gap-2 text-[var(--text-muted)] ui-font text-[10px] uppercase tracking-widest font-bold"
+						>
+							<span>Dashboard</span>
+							<span class="opacity-30">/</span>
+							<span class="text-[var(--text-primary)]"
+								>Aggregated Archives</span
+							>
+						</div>
+						<h2
+							class="ui-font text-4xl font-light text-[var(--text-primary)]"
+						>
+							Memory &amp; Logs Dashboard
+						</h2>
+						<p class="text-[var(--text-muted)] italic max-w-2xl">
+							A unified view of your local digital ecosystem.
+							Summarized patterns from health metrics, tasks, and
+							personal archives.
+						</p>
+					</header>
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+						<div class="content-card p-6 flex flex-col h-full">
+							<div class="flex justify-between items-center mb-6">
+								<h3
+									class="ui-font font-bold text-xs uppercase tracking-widest text-[var(--text-muted)] flex items-center gap-2"
+								>
+									<span
+										class="material-symbols-outlined text-sm"
+										>monitoring</span
+									>
+									Health Trends
+								</h3>
+								<span
+									class="text-[10px] ui-font font-bold text-[var(--accent-secondary)]"
+									>LAST 7 DAYS</span
+								>
+							</div>
+							<div class="space-y-4 flex-1">
+								<div
+									class="flex justify-between items-end border-b border-dashed border-[var(--border-soft)] pb-2"
+								>
+									<span class="text-sm"
+										>Avg. Protein Intake</span
+									>
+									<span class="text-xl font-bold"
+										>48g
+										<span
+											class="text-[10px] text-green-400 uppercase"
+											>↑ 12%</span
+										></span
+									>
+								</div>
+								<div
+									class="flex justify-between items-end border-b border-dashed border-[var(--border-soft)] pb-2"
+								>
+									<span class="text-sm">Sleep Quality</span>
+									<span class="text-xl font-bold"
+										>84%
+										<span
+											class="text-[10px] text-orange-300 uppercase"
+											>↓ 2%</span
+										></span
+									>
+								</div>
+							</div>
+						</div>
+						<div class="content-card p-6 flex flex-col h-full">
+							<div class="flex justify-between items-center mb-6">
+								<h3
+									class="ui-font font-bold text-xs uppercase tracking-widest text-[var(--text-muted)] flex items-center gap-2"
+								>
+									<span
+										class="material-symbols-outlined text-sm"
+										>checklist</span
+									>
+									Task Summaries
+								</h3>
+								<button
+									class="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+								>
+									<span
+										class="material-symbols-outlined text-sm"
+										>open_in_new</span
+									>
+								</button>
+							</div>
+							<ul class="space-y-3 text-sm flex-1">
+								<li class="flex items-center gap-3">
+									<span
+										class="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]"
+									></span>
+									<span
+										>Complete 'Mediterranean Chicken'
+										prep</span
+									>
+								</li>
+								<li class="flex items-center gap-3">
+									<span
+										class="w-1.5 h-1.5 rounded-full bg-[var(--accent-rose)]"
+									></span>
+									<span
+										class="line-through text-[var(--text-muted)]"
+										>Local server maintenance</span
+									>
+								</li>
+								<li class="flex items-center gap-3 opacity-60">
+									<span
+										class="w-1.5 h-1.5 rounded-full bg-gray-500"
+									></span>
+									<span>Review monthly archive logs</span>
+								</li>
+							</ul>
+						</div>
+						<div class="content-card p-6 md:col-span-2">
+							<div class="flex justify-between items-center mb-6">
+								<h3
+									class="ui-font font-bold text-xs uppercase tracking-widest text-[var(--text-muted)] flex items-center gap-2"
+								>
+									<span
+										class="material-symbols-outlined text-sm"
+										>folder_open</span
+									>
+									Recently Curated
+								</h3>
+							</div>
+							<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+								<div
+									class="p-4 bg-[var(--bg-mellow)] rounded-[var(--radius-main)] hover:bg-[#2A2A2A] border border-transparent hover:border-[var(--border-soft)] transition-all cursor-pointer"
+								>
+									<span
+										class="block ui-font text-[10px] font-bold text-[var(--text-muted)] uppercase mb-2"
+										>Recipe</span
+									>
+									<p class="font-medium text-sm">
+										Wild Mushroom Risotto
+									</p>
+								</div>
+								<div
+									class="p-4 bg-[var(--bg-mellow)] rounded-[var(--radius-main)] hover:bg-[#2A2A2A] border border-transparent hover:border-[var(--border-soft)] transition-all cursor-pointer"
+								>
+									<span
+										class="block ui-font text-[10px] font-bold text-[var(--text-muted)] uppercase mb-2"
+										>Health log</span
+									>
+									<p class="font-medium text-sm">
+										Cardio Metrics - Oct 22
+									</p>
+								</div>
+								<div
+									class="p-4 bg-[var(--bg-mellow)] rounded-[var(--radius-main)] hover:bg-[#2A2A2A] border border-transparent hover:border-[var(--border-soft)] transition-all cursor-pointer"
+								>
+									<span
+										class="block ui-font text-[10px] font-bold text-[var(--text-muted)] uppercase mb-2"
+										>Knowledge</span
+									>
+									<p class="font-medium text-sm">
+										Self-Hosting Guide v4
+									</p>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div
+						class="pt-8 border-t border-[var(--border-soft)] flex flex-wrap gap-8 text-[10px] ui-font font-bold text-[var(--text-muted)] uppercase tracking-widest"
+					>
+						<div class="flex items-center gap-2">
+							<span
+								class="w-1.5 h-1.5 rounded-full bg-green-500"
+							></span>
+							Status: Node Online
+						</div>
+						<div class="flex items-center gap-2">
+							<span
+								class="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]"
+							></span>
+							Privacy: Zero-Knowledge Local
+						</div>
+						<div class="flex items-center gap-2">
+							<span
+								class="w-1.5 h-1.5 rounded-full bg-[var(--accent-rose)]"
+							></span>
+							CPU Temp: 38°C
+						</div>
+					</div>
+				</div>
+			</section>
+			<aside
+				class="w-[450px] border-l border-[var(--border-soft)] bg-[var(--bg-deep)] flex flex-col shadow-2xl z-40"
+			>
+				<div
+					class="p-5 border-b border-[var(--border-soft)] flex items-center justify-between bg-[var(--bg-deep)] shrink-0"
+				>
+					<div class="flex items-center gap-3">
+						<div
+							class="w-8 h-8 rounded-full bg-[var(--accent-primary)]/20 flex items-center justify-center"
+						>
+							<span
+								class="material-symbols-outlined text-[var(--accent-primary)] text-xl"
+								>auto_awesome</span
+							>
+						</div>
+						<div>
+							<h3
+								class="ui-font font-bold text-sm tracking-tight text-[var(--text-primary)]"
+							>
+								Mnemosyne
+							</h3>
+							<p
+								class="text-[10px] text-green-400 font-bold uppercase tracking-wider"
+							>
+								Interface Active
+							</p>
+						</div>
+					</div>
+					<div class="flex gap-2">
+						<button
+							class="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+						>
+							<span class="material-symbols-outlined text-lg"
+								>history</span
+							>
+						</button>
+						<button
+							class="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+						>
+							<span class="material-symbols-outlined text-lg"
+								>more_vert</span
+							>
+						</button>
+					</div>
+				</div>
+				<div
+					class="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-[#181818]"
+				>
+					<div class="flex gap-3 max-w-[85%]">
+						<div class="flex-1 space-y-1">
+							<div
+								class="chat-bubble-agent p-4 rounded-2xl text-sm leading-relaxed shadow-sm"
+							>
+								Mnemosyne has compiled a nutrient breakdown for
+								'Mediterranean Chicken' recipe. I've
+								cross-referenced this with your weekly health
+								logs.
+							</div>
+							<span
+								class="text-[9px] ui-font font-bold text-[var(--text-muted)] uppercase tracking-widest pl-1"
+								>Mnemosyne • 09:12</span
+							>
+						</div>
+					</div>
+					<div class="flex justify-end">
+						<div class="max-w-[85%] space-y-1">
+							<div
+								class="chat-bubble-user p-4 rounded-2xl text-sm leading-relaxed shadow-sm"
+							>
+								Thanks. Can you also update my grocery list for
+								the ingredients?
+							</div>
+							<div class="flex justify-end">
+								<span
+									class="text-[9px] ui-font font-bold text-[var(--text-muted)] uppercase tracking-widest pr-1 text-right"
+									>You • 09:13</span
+								>
+							</div>
+						</div>
+					</div>
+					<div class="flex gap-3 max-w-[85%]">
+						<div class="flex-1 space-y-1">
+							<div
+								class="chat-bubble-agent p-4 rounded-2xl text-sm leading-relaxed shadow-sm"
+							>
+								Of course. I've added chicken breast, cherry
+								tomatoes, and kalamata olives to your 'Sunday
+								Market' list. I noticed you already have oregano
+								in your spice archive.
+							</div>
+							<span
+								class="text-[9px] ui-font font-bold text-[var(--text-muted)] uppercase tracking-widest pl-1"
+								>Mnemosyne • 09:13</span
+							>
+						</div>
+					</div>
+					<div class="flex justify-end">
+						<div class="max-w-[85%] space-y-1 text-right">
+							<div
+								class="chat-bubble-user p-4 rounded-2xl text-sm leading-relaxed shadow-sm text-left"
+							>
+								Perfect. What's the sodium impact of this meal
+								relative to my last week's average?
+							</div>
+							<div class="flex justify-end">
+								<span
+									class="text-[9px] ui-font font-bold text-[var(--text-muted)] uppercase tracking-widest pr-1"
+									>You • 09:15</span
+								>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div
+					class="p-6 border-t border-[var(--border-soft)] bg-[var(--bg-deep)] shrink-0"
+				>
+					<div class="relative">
+						<textarea
+							class="w-full bg-[var(--bg-mellow)] border border-[var(--border-soft)] rounded-xl py-4 pl-5 pr-20 ui-font text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:ring-1 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)] transition-all resize-none shadow-inner"
+							placeholder="Ask Mnemosyne..."
+							rows="2"
+						></textarea>
+						<div class="absolute right-3 bottom-3 flex gap-2">
+							<button
+								class="bg-[var(--accent-primary)] hover:bg-[#7a749d] text-[#121212] ui-font font-bold text-[10px] uppercase tracking-widest px-4 py-2 rounded-lg transition-colors shadow-sm"
+							>
+								Send
+							</button>
+						</div>
+					</div>
+				</div>
+			</aside>
+		</main>
+	</body>
+</html>

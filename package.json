@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "bun run dev:tui",
     "dev:tui": "bun run --watch src/interfaces/tui/index.tsx",
-    "dev:web": "mkdir -p .generated/web && bun build src/interfaces/web/client.tsx --outfile .generated/web/client.js --target browser --watch & bunx tailwindcss -i src/interfaces/web/styles.css -o .generated/web/app.css --watch & bun --watch src/interfaces/web/server.ts",
+    "dev:web": "bash -lc 'mkdir -p .generated/web; bun build src/interfaces/web/client.tsx --outfile .generated/web/client.js --target browser --watch & bunx tailwindcss -i src/interfaces/web/styles.css -o .generated/web/app.css --watch & bun --hot src/interfaces/web/server.ts & wait'",
     "dev:css": "mkdir -p .generated/web && bunx tailwindcss -i src/interfaces/web/styles.css -o .generated/web/app.css --watch",
     "prepare": "husky",
     "lint": "biome lint .",

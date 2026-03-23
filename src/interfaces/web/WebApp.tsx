@@ -1,6 +1,19 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { type FormEvent, useMemo, useState } from "react";
 import type { ChatMessage } from "../../core/chat";
 import { streamChat } from "./chatApi";
+import {
+	ButtonPill,
+	Card,
+	ChatSubmitMessage,
+	ChromePanel,
+	Eyebrow,
+	MessageBubble,
+	ModeToggle,
+	StatRow,
+	StatusPill,
+	uiFontClass,
+} from "./components";
+import { useTheme } from "./theme";
 
 function readInitialMessages(): ChatMessage[] {
 	const node = document.getElementById("initial-chat-state");
@@ -17,14 +30,14 @@ function readInitialMessages(): ChatMessage[] {
 
 function appendChunk(messages: ChatMessage[], id: string, chunk: string): ChatMessage[] {
 	return messages.map((message) =>
-		message.id === id
-			? { ...message, content: message.content + chunk }
-			: message,
+		message.id === id ? { ...message, content: message.content + chunk } : message,
 	);
 }
 
 export function WebApp() {
+	const { mode, resolvedTheme, setMode } = useTheme();
 	const [messages, setMessages] = useState<ChatMessage[]>(() => readInitialMessages());
+	const [showSidebar, setShowSidebar] = useState(false);
 	const [draft, setDraft] = useState("");
 	const [isStreaming, setIsStreaming] = useState(false);
 	const [status, setStatus] = useState("Connected to shared runtime");
@@ -80,139 +93,101 @@ export function WebApp() {
 			});
 		} catch (streamError) {
 			const message =
-				streamError instanceof Error
-					? streamError.message
-					: "The chat request failed.";
+				streamError instanceof Error ? streamError.message : "The chat request failed.";
 			setError(message);
 			setStatus("Runtime error");
-			setMessages((previous) =>
-				appendChunk(previous, assistantId, `\n\n[Error: ${message}]`),
-			);
+			setMessages((previous) => appendChunk(previous, assistantId, `\n\n[Error: ${message}]`));
 		} finally {
 			setIsStreaming(false);
 		}
 	};
 
 	return (
-		<div className="shell-grid">
-			<section className="chrome-panel shell-sidebar">
-				<div className="space-y-4">
-					<p className="eyebrow">Zen Chat Interface</p>
-					<h1 className="shell-title">Mnemosyne / Pocket Bot</h1>
-					<p className="shell-copy">
-						A browser surface over the same agent runtime, memory store, and
-						task loop used by the TUI.
-					</p>
-				</div>
-
-				<div className="zen-card space-y-4">
-					<div>
-						<p className="eyebrow">Session status</p>
-						<p className="ui-font text-sm text-[var(--text-dark)]">{status}</p>
+		<div className="flex min-h-screen gap-4 p-0 md:gap-6 md:p-6">
+			<ChromePanel
+				className="mx-auto flex h-screen max-h-screen w-full max-w-screen-md flex-col overflow-hidden md:h-[calc(100vh-3rem)] md:max-h-[calc(100vh-3rem)]"
+				as="section"
+			>
+				<header className="flex shrink-0 items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--muted-primary)_32%,transparent)] px-7 pb-4 pt-6">
+					<div className="flex-grow">
+						<h2 className={"text-2xl font-semibold text-primary " + uiFontClass}>/chat</h2>
 					</div>
-					<div className="space-y-3 text-sm text-[var(--text-muted)]">
-						<div className="stat-row">
-							<span>Messages in view</span>
-							<strong>{messageCount}</strong>
-						</div>
-						<div className="stat-row">
-							<span>Latest source</span>
-							<strong className="uppercase">{lastSource}</strong>
-						</div>
-						<div className="stat-row">
-							<span>Transport</span>
-							<strong>SSE</strong>
-						</div>
-					</div>
-				</div>
-
-				<div className="zen-card space-y-3">
-					<p className="eyebrow">Design tokens</p>
-					<p className="text-sm text-[var(--text-muted)]">
-						Warm canvas, serif body copy, sans-serif UI chrome, soft borders,
-						and asymmetric bubbles now live in the Tailwind layer instead of a
-						one-off HTML file.
-					</p>
-					<div className="flex flex-wrap gap-2">
-						<span className="status-pill">Lora body</span>
-						<span className="status-pill">Raleway UI</span>
-						<span className="status-pill">Soft cards</span>
-						<span className="status-pill">Lavender action</span>
-					</div>
-				</div>
-			</section>
-
-			<section className="chrome-panel chat-surface">
-				<header className="chat-header">
-					<div>
-						<p className="eyebrow">Route</p>
-						<h2 className="ui-font text-2xl font-semibold text-[var(--text-dark)]">
-							/chat
-						</h2>
-					</div>
-					<div className="status-pill">
-						{isStreaming ? "Streaming" : "Idle"}
-					</div>
+					<StatusPill>{isStreaming ? "Streaming" : "Idle"}</StatusPill>
+					<ButtonPill onClick={() => setShowSidebar(!showSidebar)}>
+						{showSidebar ? "HIDE" : "INFO"}
+					</ButtonPill>
 				</header>
 
-				<div className="message-list custom-scrollbar">
+				<div className="min-h-0 flex flex-1 flex-col gap-4 overflow-y-auto bg-[linear-gradient(180deg,color-mix(in_srgb,var(--bg-card)_80%,var(--bg))_0%,color-mix(in_srgb,var(--bg-muted)_75%,var(--bg))_100%)] px-7 py-6 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-accent [&::-webkit-scrollbar]:w-1.5">
 					{messages.length === 0 ? (
-						<div className="zen-card">
-							<p className="shell-copy">{emptyState}</p>
-						</div>
+						<Card>
+							<p className="m-0 text-[0.98rem] leading-8 text-muted-primary">{emptyState}</p>
+						</Card>
 					) : (
 						messages.map((message) => (
-							<div
+							<MessageBubble
 								key={message.id}
-								className={
-									message.role === "user"
-										? "message-row user-row"
-										: "message-row"
-								}
-							>
-								<div
-									className={
-										message.role === "user"
-											? "chat-bubble chat-bubble-user"
-											: "chat-bubble chat-bubble-agent"
-									}
-								>
-									<p className="bubble-label">
-										{message.role === "user" ? "You" : "Mnemosyne"} /{" "}
-										{message.source}
-									</p>
-									<p className="whitespace-pre-wrap leading-7">
-										{message.content || (isStreaming ? "..." : "")}
-									</p>
-								</div>
-							</div>
+								role={message.role}
+								source={message.source}
+								content={message.content}
+								isStreaming={isStreaming}
+							/>
 						))
 					)}
 				</div>
 
-				<form className="composer-shell" onSubmit={handleSubmit}>
-					<label className="sr-only" htmlFor="chat-input">
-						Ask Mnemosyne
-					</label>
-					<textarea
-						id="chat-input"
-						className="composer-input"
-						rows={3}
-						value={draft}
-						onChange={(event) => setDraft(event.target.value)}
-						placeholder="Ask Mnemosyne..."
-						disabled={isStreaming}
-					/>
-					<div className="composer-footer">
-						<p className="composer-hint">
-							{error ? error : "POST /api/chat streams tokens into this pane."}
+				<ChatSubmitMessage
+					draft={draft}
+					isStreaming={isStreaming}
+					error={error}
+					onChange={setDraft}
+					onSubmit={handleSubmit}
+				/>
+			</ChromePanel>
+
+			{showSidebar && (
+				<ChromePanel className="flex flex-col gap-6 p-7 h-full">
+					<div className="space-y-4">
+						<Eyebrow>Zen Chat Interface</Eyebrow>
+						<h1
+							className={
+								"m-0 text-[clamp(2rem,3vw,3rem)] font-semibold tracking-[-0.04em] " + uiFontClass
+							}
+						>
+							Mnemosyne Settings
+						</h1>
+						<p className="m-0 text-[0.98rem] leading-8 text-muted-primary">
+							A browser surface over the same agent runtime, memory store, and task loop used by the
+							TUI.
 						</p>
-						<button className="composer-button" disabled={isStreaming} type="submit">
-							{isStreaming ? "Thinking" : "Send"}
-						</button>
 					</div>
-				</form>
-			</section>
+
+					<Card className="space-y-4">
+						<div>
+							<Eyebrow>Session status</Eyebrow>
+							<p className={"text-sm text-primary " + uiFontClass}>{status}</p>
+						</div>
+						<div className="space-y-3 text-sm text-muted-primary">
+							<StatRow label="Messages in view" value={messageCount} />
+							<StatRow
+								label="Latest source"
+								value={<span className="uppercase">{lastSource}</span>}
+							/>
+							<StatRow label="Transport" value="SSE" />
+						</div>
+					</Card>
+
+					<Card className="space-y-3">
+						<Eyebrow>Appearance</Eyebrow>
+						<ModeToggle mode={mode} onChange={setMode} />
+						<p className="text-sm text-muted-primary">
+							Using{" "}
+							<span className={"font-semibold uppercase " + uiFontClass}>{resolvedTheme}</span>{" "}
+							theme {mode === "system" ? "(following system)" : "(manually selected)"}.
+						</p>
+					</Card>
+				</ChromePanel>
+			)}
 		</div>
 	);
 }

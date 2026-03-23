@@ -17103,8 +17103,70 @@ var require_jsx_dev_runtime = __commonJS((exports, module) => {
 // src/interfaces/web/client.tsx
 var import_client = __toESM(require_client(), 1);
 
-// src/interfaces/web/WebApp.tsx
+// src/interfaces/web/theme.tsx
 var import_react = __toESM(require_react(), 1);
+var jsx_dev_runtime = __toESM(require_jsx_dev_runtime(), 1);
+var THEME_STORAGE_KEY = "pocket-bot-theme-mode";
+var ThemeContext = import_react.createContext(null);
+function getSystemTheme() {
+  if (typeof window === "undefined") {
+    return "light";
+  }
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+function readInitialMode() {
+  if (typeof window === "undefined") {
+    return "system";
+  }
+  const storedMode = window.localStorage.getItem(THEME_STORAGE_KEY);
+  if (storedMode === "system" || storedMode === "light" || storedMode === "dark") {
+    return storedMode;
+  }
+  return "system";
+}
+function ThemeProvider({ children }) {
+  const [mode, setModeState] = import_react.useState(() => readInitialMode());
+  const [systemTheme, setSystemTheme] = import_react.useState(() => getSystemTheme());
+  import_react.useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = (event) => {
+      setSystemTheme(event.matches ? "dark" : "light");
+    };
+    setSystemTheme(mediaQuery.matches ? "dark" : "light");
+    mediaQuery.addEventListener("change", handleChange);
+    return () => {
+      mediaQuery.removeEventListener("change", handleChange);
+    };
+  }, []);
+  const setMode = import_react.useCallback((nextMode) => {
+    setModeState(nextMode);
+    window.localStorage.setItem(THEME_STORAGE_KEY, nextMode);
+  }, []);
+  const resolvedTheme = mode === "system" ? systemTheme : mode;
+  import_react.useEffect(() => {
+    document.documentElement.dataset.theme = resolvedTheme;
+    document.documentElement.dataset.themeMode = mode;
+  }, [mode, resolvedTheme]);
+  const value = import_react.useMemo(() => ({
+    mode,
+    resolvedTheme,
+    setMode
+  }), [mode, resolvedTheme, setMode]);
+  return /* @__PURE__ */ jsx_dev_runtime.jsxDEV(ThemeContext.Provider, {
+    value,
+    children
+  }, undefined, false, undefined, this);
+}
+function useTheme() {
+  const context = import_react.useContext(ThemeContext);
+  if (!context) {
+    throw new Error("useTheme must be used within a ThemeProvider");
+  }
+  return context;
+}
+
+// src/interfaces/web/WebApp.tsx
+var import_react2 = __toESM(require_react(), 1);
 
 // src/interfaces/web/chatApi.ts
 function parseEventBlock(block) {
@@ -17191,8 +17253,175 @@ async function streamChat(options) {
   }
 }
 
+// src/interfaces/web/components/utils.ts
+function cx(...values) {
+  return values.filter(Boolean).join(" ");
+}
+var uiFontClass = "font-['Raleway',sans-serif]";
+
+// src/interfaces/web/components/Card.tsx
+var jsx_dev_runtime2 = __toESM(require_jsx_dev_runtime(), 1);
+function Card({ children, className }) {
+  return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+    className: cx("rounded-[1.25rem] border p-5", "border-[color-mix(in_srgb,var(--muted-primary)_32%,transparent)]", "bg-bg-card shadow-[0_10px_24px_color-mix(in_srgb,var(--bg)_40%,transparent)]", className),
+    children
+  }, undefined, false, undefined, this);
+}
+// src/interfaces/web/components/ChatSubmitMessage.tsx
+var jsx_dev_runtime3 = __toESM(require_jsx_dev_runtime(), 1);
+function ChatSubmitMessage({
+  draft,
+  isStreaming,
+  error,
+  onChange,
+  onSubmit
+}) {
+  return /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("form", {
+    onSubmit,
+    className: "sticky bottom-0 z-10 flex shrink-0 flex-col gap-3.5 border-t border-[color-mix(in_srgb,var(--muted-primary)_32%,transparent)] bg-bg-card px-7 pb-7 pt-5",
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("label", {
+        className: "sr-only",
+        htmlFor: "chat-input",
+        children: "Ask Mnemosyne"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("textarea", {
+        id: "chat-input",
+        rows: 3,
+        value: draft,
+        onChange: (event) => onChange(event.target.value),
+        placeholder: "Ask Mnemosyne...",
+        disabled: isStreaming,
+        className: "min-h-[5.5rem] w-full resize-y rounded-2xl border border-muted-primary/35 bg-bg-muted px-4 py-4 text-primary shadow-[inset_0_1px_2px_color-mix(in_srgb,var(--bg)_25%,transparent)] outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+        className: "flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center",
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("p", {
+            className: "m-0 text-[0.8rem] text-muted-primary " + uiFontClass,
+            children: error ?? "POST /api/chat streams tokens into this pane."
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("button", {
+            type: "submit",
+            disabled: isStreaming,
+            className: "cursor-pointer rounded-[0.9rem] border-0 bg-accent px-5 py-3 text-[0.78rem] font-bold uppercase tracking-[0.14em] text-secondary transition-all hover:-translate-y-px hover:bg-accent-pop disabled:cursor-default disabled:opacity-65 " + uiFontClass,
+            children: isStreaming ? "Thinking" : "Send"
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+}
+// src/interfaces/web/components/ChromePanel.tsx
+var jsx_dev_runtime4 = __toESM(require_jsx_dev_runtime(), 1);
+function ChromePanel({
+  children,
+  className,
+  as = "section"
+}) {
+  const Tag = as;
+  return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Tag, {
+    className: cx("border-[color-mix(in_srgb,var(--muted-primary)_35%,transparent)]", "bg-[color-mix(in_srgb,var(--bg-card)_94%,var(--bg))]", "shadow-[0_18px_50px_color-mix(in_srgb,var(--bg)_55%,transparent)]", "backdrop-blur-[16px] md:rounded-[1.5rem] md:border", className),
+    children
+  }, undefined, false, undefined, this);
+}
+// src/interfaces/web/components/Eyebrow.tsx
+var jsx_dev_runtime5 = __toESM(require_jsx_dev_runtime(), 1);
+function Eyebrow({ children }) {
+  return /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("p", {
+    className: cx("mb-1 text-[0.72rem] font-bold uppercase tracking-[0.22em] text-[var(--muted-primary)]", uiFontClass),
+    children
+  }, undefined, false, undefined, this);
+}
+// src/interfaces/web/components/MessageBubble.tsx
+var jsx_dev_runtime6 = __toESM(require_jsx_dev_runtime(), 1);
+function MessageBubble({
+  role,
+  source,
+  content,
+  isStreaming
+}) {
+  const isUser = role === "user";
+  const label = role === "user" ? "You" : role === "system" ? "System" : role === "tool" ? "Tool" : "Mnemosyne";
+  return /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("div", {
+    className: cx("flex max-w-[85%]", isUser && "self-end justify-end max-md:max-w-full"),
+    children: /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("div", {
+      className: cx("rounded-[1.35rem] px-[1.1rem] py-4 text-primary", "border border-[color-mix(in_srgb,var(--muted-primary)_34%,transparent)]", isUser && "rounded-br-[0.35rem] border-accent-pop/70 bg-[color-mix(in_srgb,var(--accent)_78%,var(--bg-card))] text-secondary", !isUser && "rounded-bl-[0.35rem]"),
+      children: [
+        /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("p", {
+          className: cx("mb-1 text-[0.72rem] font-bold uppercase tracking-[0.16em] text-muted-primary", uiFontClass),
+          children: [
+            label,
+            " / ",
+            source
+          ]
+        }, undefined, true, undefined, this),
+        /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("p", {
+          className: "whitespace-pre-wrap leading-7",
+          children: content || (isStreaming ? "..." : "")
+        }, undefined, false, undefined, this)
+      ]
+    }, undefined, true, undefined, this)
+  }, undefined, false, undefined, this);
+}
+// src/interfaces/web/components/ModeToggle.tsx
+var jsx_dev_runtime7 = __toESM(require_jsx_dev_runtime(), 1);
+function ModeToggle({
+  mode,
+  onChange
+}) {
+  const options = [
+    { mode: "system", label: "System" },
+    { mode: "light", label: "Light" },
+    { mode: "dark", label: "Dark" }
+  ];
+  return /* @__PURE__ */ jsx_dev_runtime7.jsxDEV("div", {
+    className: "inline-flex gap-1 rounded-[0.9rem] border border-muted-primary/35 bg-bg-muted p-1",
+    children: options.map((option) => {
+      const isActive = option.mode === mode;
+      return /* @__PURE__ */ jsx_dev_runtime7.jsxDEV("button", {
+        type: "button",
+        onClick: () => onChange(option.mode),
+        "aria-pressed": isActive,
+        className: cx("rounded-[0.7rem] border-0 px-3 py-2 text-[0.72rem] font-bold uppercase tracking-[0.1em] text-muted-primary transition-colors", "hover:text-primary", uiFontClass, isActive && "bg-accent/30 text-primary"),
+        children: option.label
+      }, option.mode, false, undefined, this);
+    })
+  }, undefined, false, undefined, this);
+}
+// src/interfaces/web/components/StatRow.tsx
+var jsx_dev_runtime8 = __toESM(require_jsx_dev_runtime(), 1);
+function StatRow({ label, value }) {
+  return /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
+    className: cx("flex items-center justify-between gap-4", uiFontClass),
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("span", {
+        children: label
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("strong", {
+        children: value
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+}
+// src/interfaces/web/components/StatusPill.tsx
+var jsx_dev_runtime9 = __toESM(require_jsx_dev_runtime(), 1);
+function StatusPill({ children }) {
+  return /* @__PURE__ */ jsx_dev_runtime9.jsxDEV("div", {
+    className: cx("inline-flex items-center gap-1 rounded-full bg-accent/30 px-3 py-2 text-[0.75rem] font-bold uppercase tracking-[0.12em] text-primary", uiFontClass),
+    children
+  }, undefined, false, undefined, this);
+}
+function ButtonPill({ children, className, type = "button", ...props }) {
+  return /* @__PURE__ */ jsx_dev_runtime9.jsxDEV("button", {
+    type,
+    className: cx("inline-flex items-center gap-1 rounded-full bg-bg-muted px-3 py-2 text-[0.75rem] font-bold uppercase tracking-[0.12em] text-primary transition-colors hover:bg-accent/30", uiFontClass, className),
+    ...props,
+    children
+  }, undefined, false, undefined, this);
+}
 // src/interfaces/web/WebApp.tsx
-var jsx_dev_runtime = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime10 = __toESM(require_jsx_dev_runtime(), 1);
 function readInitialMessages() {
   const node = document.getElementById("initial-chat-state");
   if (!node?.textContent) {
@@ -17208,14 +17437,16 @@ function appendChunk(messages, id, chunk) {
   return messages.map((message) => message.id === id ? { ...message, content: message.content + chunk } : message);
 }
 function WebApp() {
-  const [messages, setMessages] = import_react.useState(() => readInitialMessages());
-  const [draft, setDraft] = import_react.useState("");
-  const [isStreaming, setIsStreaming] = import_react.useState(false);
-  const [status, setStatus] = import_react.useState("Connected to shared runtime");
-  const [error, setError] = import_react.useState(null);
+  const { mode, resolvedTheme, setMode } = useTheme();
+  const [messages, setMessages] = import_react2.useState(() => readInitialMessages());
+  const [showSidebar, setShowSidebar] = import_react2.useState(false);
+  const [draft, setDraft] = import_react2.useState("");
+  const [isStreaming, setIsStreaming] = import_react2.useState(false);
+  const [status, setStatus] = import_react2.useState("Connected to shared runtime");
+  const [error, setError] = import_react2.useState(null);
   const messageCount = messages.length;
   const lastSource = messages.at(-1)?.source ?? "web";
-  const emptyState = import_react.useMemo(() => "Ask a question, schedule work, or use this page as the browser view into the same long-lived agent session the TUI uses.", []);
+  const emptyState = import_react2.useMemo(() => "Ask a question, schedule work, or use this page as the browser view into the same long-lived agent session the TUI uses.", []);
   const handleSubmit = async (event) => {
     event.preventDefault();
     const nextMessage = draft.trim();
@@ -17264,206 +17495,133 @@ function WebApp() {
       setIsStreaming(false);
     }
   };
-  return /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-    className: "shell-grid",
+  return /* @__PURE__ */ jsx_dev_runtime10.jsxDEV("div", {
+    className: "flex min-h-screen gap-4 p-0 md:gap-6 md:p-6",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("section", {
-        className: "chrome-panel shell-sidebar",
+      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(ChromePanel, {
+        className: "mx-auto flex h-screen max-h-screen w-full max-w-screen-md flex-col overflow-hidden md:h-[calc(100vh-3rem)] md:max-h-[calc(100vh-3rem)]",
+        as: "section",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
+          /* @__PURE__ */ jsx_dev_runtime10.jsxDEV("header", {
+            className: "flex shrink-0 items-center justify-between gap-4 border-b border-[color-mix(in_srgb,var(--muted-primary)_32%,transparent)] px-7 pb-4 pt-6",
+            children: [
+              /* @__PURE__ */ jsx_dev_runtime10.jsxDEV("div", {
+                className: "flex-grow",
+                children: /* @__PURE__ */ jsx_dev_runtime10.jsxDEV("h2", {
+                  className: "text-2xl font-semibold text-primary " + uiFontClass,
+                  children: "/chat"
+                }, undefined, false, undefined, this)
+              }, undefined, false, undefined, this),
+              /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(StatusPill, {
+                children: isStreaming ? "Streaming" : "Idle"
+              }, undefined, false, undefined, this),
+              /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(ButtonPill, {
+                onClick: () => setShowSidebar(!showSidebar),
+                children: showSidebar ? "HIDE" : "INFO"
+              }, undefined, false, undefined, this)
+            ]
+          }, undefined, true, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime10.jsxDEV("div", {
+            className: "min-h-0 flex flex-1 flex-col gap-4 overflow-y-auto bg-[linear-gradient(180deg,color-mix(in_srgb,var(--bg-card)_80%,var(--bg))_0%,color-mix(in_srgb,var(--bg-muted)_75%,var(--bg))_100%)] px-7 py-6 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-accent [&::-webkit-scrollbar]:w-1.5",
+            children: messages.length === 0 ? /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Card, {
+              children: /* @__PURE__ */ jsx_dev_runtime10.jsxDEV("p", {
+                className: "m-0 text-[0.98rem] leading-8 text-muted-primary",
+                children: emptyState
+              }, undefined, false, undefined, this)
+            }, undefined, false, undefined, this) : messages.map((message) => /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(MessageBubble, {
+              role: message.role,
+              source: message.source,
+              content: message.content,
+              isStreaming
+            }, message.id, false, undefined, this))
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(ChatSubmitMessage, {
+            draft,
+            isStreaming,
+            error,
+            onChange: setDraft,
+            onSubmit: handleSubmit
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this),
+      showSidebar && /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(ChromePanel, {
+        className: "flex flex-col gap-6 p-7 h-full",
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime10.jsxDEV("div", {
             className: "space-y-4",
             children: [
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("p", {
-                className: "eyebrow",
+              /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Eyebrow, {
                 children: "Zen Chat Interface"
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("h1", {
-                className: "shell-title",
-                children: "Mnemosyne / Pocket Bot"
+              /* @__PURE__ */ jsx_dev_runtime10.jsxDEV("h1", {
+                className: "m-0 text-[clamp(2rem,3vw,3rem)] font-semibold tracking-[-0.04em] " + uiFontClass,
+                children: "Mnemosyne Settings"
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("p", {
-                className: "shell-copy",
+              /* @__PURE__ */ jsx_dev_runtime10.jsxDEV("p", {
+                className: "m-0 text-[0.98rem] leading-8 text-muted-primary",
                 children: "A browser surface over the same agent runtime, memory store, and task loop used by the TUI."
               }, undefined, false, undefined, this)
             ]
           }, undefined, true, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-            className: "zen-card space-y-4",
+          /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Card, {
+            className: "space-y-4",
             children: [
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
+              /* @__PURE__ */ jsx_dev_runtime10.jsxDEV("div", {
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("p", {
-                    className: "eyebrow",
+                  /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Eyebrow, {
                     children: "Session status"
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("p", {
-                    className: "ui-font text-sm text-[var(--text-dark)]",
+                  /* @__PURE__ */ jsx_dev_runtime10.jsxDEV("p", {
+                    className: "text-sm text-primary " + uiFontClass,
                     children: status
                   }, undefined, false, undefined, this)
                 ]
               }, undefined, true, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-                className: "space-y-3 text-sm text-[var(--text-muted)]",
+              /* @__PURE__ */ jsx_dev_runtime10.jsxDEV("div", {
+                className: "space-y-3 text-sm text-muted-primary",
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-                    className: "stat-row",
-                    children: [
-                      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
-                        children: "Messages in view"
-                      }, undefined, false, undefined, this),
-                      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("strong", {
-                        children: messageCount
-                      }, undefined, false, undefined, this)
-                    ]
-                  }, undefined, true, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-                    className: "stat-row",
-                    children: [
-                      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
-                        children: "Latest source"
-                      }, undefined, false, undefined, this),
-                      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("strong", {
-                        className: "uppercase",
-                        children: lastSource
-                      }, undefined, false, undefined, this)
-                    ]
-                  }, undefined, true, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-                    className: "stat-row",
-                    children: [
-                      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
-                        children: "Transport"
-                      }, undefined, false, undefined, this),
-                      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("strong", {
-                        children: "SSE"
-                      }, undefined, false, undefined, this)
-                    ]
-                  }, undefined, true, undefined, this)
+                  /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(StatRow, {
+                    label: "Messages in view",
+                    value: messageCount
+                  }, undefined, false, undefined, this),
+                  /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(StatRow, {
+                    label: "Latest source",
+                    value: /* @__PURE__ */ jsx_dev_runtime10.jsxDEV("span", {
+                      className: "uppercase",
+                      children: lastSource
+                    }, undefined, false, undefined, this)
+                  }, undefined, false, undefined, this),
+                  /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(StatRow, {
+                    label: "Transport",
+                    value: "SSE"
+                  }, undefined, false, undefined, this)
                 ]
               }, undefined, true, undefined, this)
             ]
           }, undefined, true, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-            className: "zen-card space-y-3",
+          /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Card, {
+            className: "space-y-3",
             children: [
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("p", {
-                className: "eyebrow",
-                children: "Design tokens"
+              /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Eyebrow, {
+                children: "Appearance"
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("p", {
-                className: "text-sm text-[var(--text-muted)]",
-                children: "Warm canvas, serif body copy, sans-serif UI chrome, soft borders, and asymmetric bubbles now live in the Tailwind layer instead of a one-off HTML file."
+              /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(ModeToggle, {
+                mode,
+                onChange: setMode
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-                className: "flex flex-wrap gap-2",
+              /* @__PURE__ */ jsx_dev_runtime10.jsxDEV("p", {
+                className: "text-sm text-muted-primary",
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
-                    className: "status-pill",
-                    children: "Lora body"
+                  "Using",
+                  " ",
+                  /* @__PURE__ */ jsx_dev_runtime10.jsxDEV("span", {
+                    className: "font-semibold uppercase " + uiFontClass,
+                    children: resolvedTheme
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
-                    className: "status-pill",
-                    children: "Raleway UI"
-                  }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
-                    className: "status-pill",
-                    children: "Soft cards"
-                  }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
-                    className: "status-pill",
-                    children: "Lavender action"
-                  }, undefined, false, undefined, this)
-                ]
-              }, undefined, true, undefined, this)
-            ]
-          }, undefined, true, undefined, this)
-        ]
-      }, undefined, true, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("section", {
-        className: "chrome-panel chat-surface",
-        children: [
-          /* @__PURE__ */ jsx_dev_runtime.jsxDEV("header", {
-            className: "chat-header",
-            children: [
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-                children: [
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("p", {
-                    className: "eyebrow",
-                    children: "Route"
-                  }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("h2", {
-                    className: "ui-font text-2xl font-semibold text-[var(--text-dark)]",
-                    children: "/chat"
-                  }, undefined, false, undefined, this)
-                ]
-              }, undefined, true, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-                className: "status-pill",
-                children: isStreaming ? "Streaming" : "Idle"
-              }, undefined, false, undefined, this)
-            ]
-          }, undefined, true, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-            className: "message-list custom-scrollbar",
-            children: messages.length === 0 ? /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-              className: "zen-card",
-              children: /* @__PURE__ */ jsx_dev_runtime.jsxDEV("p", {
-                className: "shell-copy",
-                children: emptyState
-              }, undefined, false, undefined, this)
-            }, undefined, false, undefined, this) : messages.map((message) => /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-              className: message.role === "user" ? "message-row user-row" : "message-row",
-              children: /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-                className: message.role === "user" ? "chat-bubble chat-bubble-user" : "chat-bubble chat-bubble-agent",
-                children: [
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("p", {
-                    className: "bubble-label",
-                    children: [
-                      message.role === "user" ? "You" : "Mnemosyne",
-                      " /",
-                      " ",
-                      message.source
-                    ]
-                  }, undefined, true, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("p", {
-                    className: "whitespace-pre-wrap leading-7",
-                    children: message.content || (isStreaming ? "..." : "")
-                  }, undefined, false, undefined, this)
-                ]
-              }, undefined, true, undefined, this)
-            }, message.id, false, undefined, this))
-          }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime.jsxDEV("form", {
-            className: "composer-shell",
-            onSubmit: handleSubmit,
-            children: [
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("label", {
-                className: "sr-only",
-                htmlFor: "chat-input",
-                children: "Ask Mnemosyne"
-              }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("textarea", {
-                id: "chat-input",
-                className: "composer-input",
-                rows: 3,
-                value: draft,
-                onChange: (event) => setDraft(event.target.value),
-                placeholder: "Ask Mnemosyne...",
-                disabled: isStreaming
-              }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-                className: "composer-footer",
-                children: [
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("p", {
-                    className: "composer-hint",
-                    children: error ? error : "POST /api/chat streams tokens into this pane."
-                  }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("button", {
-                    className: "composer-button",
-                    disabled: isStreaming,
-                    type: "submit",
-                    children: isStreaming ? "Thinking" : "Send"
-                  }, undefined, false, undefined, this)
+                  " ",
+                  "theme ",
+                  mode === "system" ? "(following system)" : "(manually selected)",
+                  "."
                 ]
               }, undefined, true, undefined, this)
             ]
@@ -17475,9 +17633,11 @@ function WebApp() {
 }
 
 // src/interfaces/web/client.tsx
-var jsx_dev_runtime2 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime11 = __toESM(require_jsx_dev_runtime(), 1);
 var rootElement = document.getElementById("root");
 if (!rootElement) {
   throw new Error("Root element not found for /chat.");
 }
-import_client.createRoot(rootElement).render(/* @__PURE__ */ jsx_dev_runtime2.jsxDEV(WebApp, {}, undefined, false, undefined, this));
+import_client.createRoot(rootElement).render(/* @__PURE__ */ jsx_dev_runtime11.jsxDEV(ThemeProvider, {
+  children: /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(WebApp, {}, undefined, false, undefined, this)
+}, undefined, false, undefined, this));

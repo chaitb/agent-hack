@@ -49,22 +49,13 @@ function estimateLines(msg: ChatMessage, width: number): number {
 	const textLines = msg.content
 		.trim()
 		.split("\n")
-		.reduce(
-			(acc, line) => acc + Math.max(1, Math.ceil(line.length / contentWidth)),
-			0,
-		);
+		.reduce((acc, line) => acc + Math.max(1, Math.ceil(line.length / contentWidth)), 0);
 	return 1 + textLines + 1; // label + text lines + margin
 }
 
 // ─── Single message component ────────────────────────────────────────────────
 
-function MessageBubble({
-	msg,
-	streaming,
-}: {
-	msg: ChatMessage;
-	streaming: boolean;
-}) {
+function MessageBubble({ msg, streaming }: { msg: ChatMessage; streaming: boolean }) {
 	const v = getVariant(msg);
 
 	return (
@@ -126,9 +117,7 @@ export function ChatPanel({ messages, isStreaming }: ChatPanelProps) {
 						key={msg.id}
 						msg={msg}
 						streaming={
-							startIdx + i === messages.length - 1 &&
-							isStreaming &&
-							msg.role === "assistant"
+							startIdx + i === messages.length - 1 && isStreaming && msg.role === "assistant"
 						}
 					/>
 				))
