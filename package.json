@@ -8,6 +8,12 @@
     "dev:tui": "bun run --watch src/interfaces/tui/index.tsx",
     "dev:web": "mkdir -p .generated/web && bun build src/interfaces/web/client.tsx --outfile .generated/web/client.js --target browser --watch & bunx tailwindcss -i src/interfaces/web/styles.css -o .generated/web/app.css --watch & bun --watch src/interfaces/web/server.ts",
     "dev:css": "mkdir -p .generated/web && bunx tailwindcss -i src/interfaces/web/styles.css -o .generated/web/app.css --watch",
+    "prepare": "husky",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "check": "biome check .",
+    "check:staged": "biome check --staged --no-errors-on-unmatched",
     "pocket": "bun run src/interfaces/cli.ts",
     "start": "bun src/interfaces/web/server.ts",
     "start:tui": "bun src/interfaces/tui/index.tsx",
@@ -18,12 +24,14 @@
     "test": "bun test"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.8",
     "@tailwindcss/cli": "^4.2.2",
     "@types/bun": "latest",
     "@types/cli-progress": "^3.11.6",
     "@types/node": "^25.3.1",
     "@types/react-dom": "^19.2.3",
-    "@types/yargs": "^17.0.35"
+    "@types/yargs": "^17.0.35",
+    "husky": "^9.1.7"
   },
   "peerDependencies": {
     "typescript": "^5"

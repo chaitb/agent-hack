@@ -4,6 +4,7 @@ node_modules
 # output
 out
 dist
+.generated
 *.tgz
 src/styles/output.css
 
@@ -26,6 +27,8 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # caches
 .eslintcache
 .cache
+.bun-install
+.bun-tmp
 *.tsbuildinfo
 
 # IntelliJ based IDEs
