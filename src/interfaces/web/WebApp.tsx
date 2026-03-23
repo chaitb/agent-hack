@@ -1,4 +1,4 @@
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import type { ChatMessage } from "../../core/chat";
 import { streamChat } from "./chatApi";
 import {
@@ -15,32 +15,34 @@ import {
 } from "./components";
 import { useTheme } from "./theme";
 
-function readInitialMessages(): ChatMessage[] {
-	const node = document.getElementById("initial-chat-state");
-	if (!node?.textContent) {
-		return [];
-	}
-
-	try {
-		return JSON.parse(node.textContent) as ChatMessage[];
-	} catch {
-		return [];
-	}
-}
-
 function appendChunk(messages: ChatMessage[], id: string, chunk: string): ChatMessage[] {
 	return messages.map((message) =>
 		message.id === id ? { ...message, content: message.content + chunk } : message,
 	);
 }
 
+async function fetchInitialMessages(limit = 20): Promise<ChatMessage[]> {
+	const response = await fetch(`/api/chat/messages?limit=${limit}`);
+	if (!response.ok) {
+		throw new Error("Failed to load recent chat history.");
+	}
+
+	const payload = (await response.json()) as { messages?: ChatMessage[] };
+	if (!Array.isArray(payload.messages)) {
+		return [];
+	}
+
+	return payload.messages;
+}
+
 export function WebApp() {
 	const { mode, resolvedTheme, setMode } = useTheme();
-	const [messages, setMessages] = useState<ChatMessage[]>(() => readInitialMessages());
+	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [showSidebar, setShowSidebar] = useState(false);
 	const [draft, setDraft] = useState("");
 	const [isStreaming, setIsStreaming] = useState(false);
-	const [status, setStatus] = useState("Connected to shared runtime");
+	const [isHistoryLoading, setIsHistoryLoading] = useState(true);
+	const [status, setStatus] = useState("Loading recent messages");
 	const [error, setError] = useState<string | null>(null);
 
 	const messageCount = messages.length;
@@ -50,6 +52,35 @@ export function WebApp() {
 			"Ask a question, schedule work, or use this page as the browser view into the same long-lived agent session the TUI uses.",
 		[],
 	);
+
+	useEffect(() => {
+		let cancelled = false;
+
+		void (async () => {
+			try {
+				const initialMessages = await fetchInitialMessages(20);
+				if (!cancelled) {
+					setMessages((previous) => (previous.length > 0 ? previous : initialMessages));
+					setStatus("Connected to shared runtime");
+				}
+			} catch (loadError) {
+				const message =
+					loadError instanceof Error ? loadError.message : "Failed to load recent chat history.";
+				if (!cancelled) {
+					setError(message);
+					setStatus("Runtime error");
+				}
+			} finally {
+				if (!cancelled) {
+					setIsHistoryLoading(false);
+				}
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	}, []);
 
 	const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
@@ -121,7 +152,9 @@ export function WebApp() {
 				<div className="min-h-0 flex flex-1 flex-col gap-4 overflow-y-auto bg-[linear-gradient(180deg,color-mix(in_srgb,var(--bg-card)_80%,var(--bg))_0%,color-mix(in_srgb,var(--bg-muted)_75%,var(--bg))_100%)] px-7 py-6 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-accent [&::-webkit-scrollbar]:w-1.5">
 					{messages.length === 0 ? (
 						<Card>
-							<p className="m-0 text-[0.98rem] leading-8 text-muted-primary">{emptyState}</p>
+							<p className="m-0 text-[0.98rem] leading-8 text-muted-primary">
+								{isHistoryLoading ? "Loading messages..." : emptyState}
+							</p>
 						</Card>
 					) : (
 						messages.map((message) => (

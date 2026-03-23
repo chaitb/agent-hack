@@ -1,9 +1,8 @@
 import "dotenv/config";
-import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { Hono } from "hono";
 import type { ChatService } from "../../core/chat";
 import { createAppRuntime } from "../../runtime/createAppRuntime";
-import { renderChatPage } from "./page";
 
 const SSE_HEADERS = {
 	"Cache-Control": "no-cache, no-transform",
@@ -21,11 +20,6 @@ function resolveAssetDir(explicitDir?: string): string {
 		return explicitDir;
 	}
 
-	const generatedDir = resolve(process.cwd(), ".generated/web");
-	if (existsSync(generatedDir)) {
-		return generatedDir;
-	}
-
 	return resolve(process.cwd(), "dist/web");
 }
 
@@ -39,13 +33,17 @@ function contentTypeForPath(pathname: string): string {
 	return "application/octet-stream";
 }
 
-function jsonResponse(payload: unknown, status = 200): Response {
-	return new Response(JSON.stringify(payload), {
-		status,
-		headers: {
-			"Content-Type": "application/json; charset=utf-8",
-		},
-	});
+function parseMessageLimit(raw: string | undefined): number {
+	if (!raw) {
+		return 20;
+	}
+
+	const parsed = Number(raw);
+	if (!Number.isFinite(parsed)) {
+		return 20;
+	}
+
+	return Math.min(100, Math.max(1, Math.trunc(parsed)));
 }
 
 function formatEvent(event: string, data: unknown): Uint8Array {
@@ -102,58 +100,68 @@ async function serveAsset(assetDir: string, pathname: string): Promise<Response>
 
 export function createWebHandler({ chatService, assetDir }: WebHandlerDependencies) {
 	const resolvedAssetDir = resolveAssetDir(assetDir);
+	const app = new Hono();
 
-	return async function handleWebRequest(request: Request): Promise<Response> {
-		const url = new URL(request.url);
-
-		if (url.pathname === "/") {
-			return Response.redirect(new URL("/chat", url), 302);
+	app.get("/", (context) => {
+		const webDevServerUrl = process.env.WEB_DEV_SERVER_URL;
+		if (webDevServerUrl) {
+			return context.redirect(webDevServerUrl, 302);
 		}
 
-		if (url.pathname === "/assets/app.css" || url.pathname === "/assets/client.js") {
-			return serveAsset(resolvedAssetDir, url.pathname);
+		return context.text("Web UI is served separately. Use /api endpoints.", 404);
+	});
+
+	app.get("/assets/:fileName", async (context) => {
+		if (process.env.WEB_DEV_SERVER_URL) {
+			return context.text("Asset handled by Vite dev server.", 404);
 		}
 
-		if (url.pathname === "/chat" && request.method === "GET") {
-			const initialMessages = await chatService.getRecentMessages(20);
-			return new Response(renderChatPage(initialMessages), {
-				headers: {
-					"Content-Type": "text/html; charset=utf-8",
-				},
-			});
+		const fileName = context.req.param("fileName");
+		if (fileName !== "app.css" && fileName !== "client.js") {
+			return context.text("Not found.", 404);
 		}
 
-		if (url.pathname === "/api/chat" && request.method === "POST") {
-			let payload: unknown;
-			try {
-				payload = await request.json();
-			} catch {
-				return jsonResponse({ error: "Invalid JSON body." }, 400);
-			}
+		return serveAsset(resolvedAssetDir, `/assets/${fileName}`);
+	});
 
-			const message =
-				payload &&
-				typeof payload === "object" &&
-				"message" in payload &&
-				typeof payload.message === "string"
-					? payload.message.trim()
-					: "";
+	app.get("/api/chat/messages", async (context) => {
+		const limit = parseMessageLimit(context.req.query("limit"));
+		const messages = await chatService.getRecentMessages(limit);
+		return context.json({ messages });
+	});
 
-			if (!message) {
-				return jsonResponse({ error: "message is required." }, 400);
-			}
-
-			return serveChatStream(chatService, message);
+	app.post("/api/chat", async (context) => {
+		let payload: unknown;
+		try {
+			payload = await context.req.json();
+		} catch {
+			return context.json({ error: "Invalid JSON body." }, 400);
 		}
 
-		return new Response("Not found.", { status: 404 });
-	};
+		const message =
+			payload &&
+			typeof payload === "object" &&
+			"message" in payload &&
+			typeof payload.message === "string"
+				? payload.message.trim()
+				: "";
+
+		if (!message) {
+			return context.json({ error: "message is required." }, 400);
+		}
+
+		return serveChatStream(chatService, message);
+	});
+
+	app.all("*", (context) => context.text("Not found.", 404));
+
+	return app.fetch;
 }
 
 export async function startWebServer() {
 	const runtime = await createAppRuntime({
 		startHeartbeat: false,
-		startTelegram: false,
+		startTelegram: true,
 	});
 
 	const port = Number(process.env.PORT ?? 3000);
@@ -164,7 +172,7 @@ export async function startWebServer() {
 		}),
 	});
 
-	console.log(`Web server listening on http://localhost:${server.port}/chat`);
+	console.log(`Web API server listening on http://localhost:${server.port}`);
 	return { runtime, server };
 }
 

@@ -25,15 +25,13 @@ function createStubHandler() {
 }
 
 describe("createWebHandler", () => {
-	test("serves the /chat page with embedded initial state", async () => {
+	test("returns recent messages via GET /api/chat/messages", async () => {
 		const handler = createStubHandler();
-		const response = await handler(new Request("http://localhost/chat"));
-		const html = await response.text();
+		const response = await handler(new Request("http://localhost/api/chat/messages?limit=20"));
+		const payload = await response.json();
 
 		expect(response.status).toBe(200);
-		expect(html).toContain("Mnemosyne Chat");
-		expect(html).toContain("Welcome back.");
-		expect(html).toContain("/assets/client.js");
+		expect(payload).toEqual({ messages: history });
 	});
 
 	test("streams SSE events for POST /api/chat", async () => {
