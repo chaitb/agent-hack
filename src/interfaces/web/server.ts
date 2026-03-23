@@ -1,6 +1,6 @@
 import "dotenv/config";
-import { existsSync } from "fs";
-import { resolve } from "path";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import type { ChatService } from "../../core/chat";
 import { createAppRuntime } from "../../runtime/createAppRuntime";
 import { renderChatPage } from "./page";
@@ -49,9 +49,7 @@ function jsonResponse(payload: unknown, status = 200): Response {
 }
 
 function formatEvent(event: string, data: unknown): Uint8Array {
-	return new TextEncoder().encode(
-		`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`,
-	);
+	return new TextEncoder().encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
 
 async function serveChatStream(
@@ -73,8 +71,7 @@ async function serveChatStream(
 					}
 					send("done", { ok: true });
 				} catch (error) {
-					const messageText =
-						error instanceof Error ? error.message : "Unknown chat error";
+					const messageText = error instanceof Error ? error.message : "Unknown chat error";
 					send("error", { message: messageText });
 				} finally {
 					controller.close();
@@ -103,10 +100,7 @@ async function serveAsset(assetDir: string, pathname: string): Promise<Response>
 	});
 }
 
-export function createWebHandler({
-	chatService,
-	assetDir,
-}: WebHandlerDependencies) {
+export function createWebHandler({ chatService, assetDir }: WebHandlerDependencies) {
 	const resolvedAssetDir = resolveAssetDir(assetDir);
 
 	return async function handleWebRequest(request: Request): Promise<Response> {

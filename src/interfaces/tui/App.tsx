@@ -1,5 +1,5 @@
 import { Box, Text, useApp, useStdout } from "ink";
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { logger } from "../../core/logger";
 import type { AppRuntime } from "../../runtime/createAppRuntime";
 import { createAppRuntime } from "../../runtime/createAppRuntime";
@@ -20,8 +20,9 @@ export function TuiApp() {
 	const [screen, setScreen] = useState("chat");
 	const runtimeRef = useRef<AppRuntime | null>(null);
 
-	const { messages, isStreaming, send, addSystemMessage, clear, loadHistory } =
-		useStreamAgent(runtime?.chatService);
+	const { messages, isStreaming, send, addSystemMessage, clear, loadHistory } = useStreamAgent(
+		runtime?.chatService,
+	);
 
 	// Initialize on mount
 	useEffect(() => {
@@ -126,18 +127,10 @@ export function TuiApp() {
 					{screen === "chat" && (
 						<>
 							<ChatPanel messages={messages} isStreaming={isStreaming} />
-							<InputBar
-								onSubmit={handleSubmit}
-								disabled={isStreaming || !ready}
-							/>
+							<InputBar onSubmit={handleSubmit} disabled={isStreaming || !ready} />
 						</>
 					)}
-					{screen === "memory" && (
-						<MemoryPanel
-							db={runtime?.db}
-							onBack={() => setScreen("chat")}
-						/>
-					)}
+					{screen === "memory" && <MemoryPanel db={runtime?.db} onBack={() => setScreen("chat")} />}
 				</Box>
 
 				{/* Right: Logs */}
