@@ -62,7 +62,7 @@ export async function recallMemory(client: Client, key: string): Promise<string 
 		return null;
 	}
 
-	return result.rows[0]!.value as string;
+	return result.rows[0]?.value as string;
 }
 
 export async function forgetMemory(client: Client, key: string): Promise<boolean> {

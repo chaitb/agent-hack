@@ -39,8 +39,8 @@ export async function getMessageRoleAndSource(
 	}
 
 	return {
-		role: result.rows[0]!.role as MessageRole,
-		source: result.rows[0]!.source as MessageSource,
+		role: result.rows[0]?.role as MessageRole,
+		source: result.rows[0]?.source as MessageSource,
 	};
 }
 
