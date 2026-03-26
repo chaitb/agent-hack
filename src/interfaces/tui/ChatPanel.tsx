@@ -1,5 +1,5 @@
 import { Box, Spacer, Text, useStdout } from "ink";
-import type { ChatMessage } from "../../core/chat";
+import type { ChatMessage } from "../../core/model";
 
 interface ChatPanelProps {
 	messages: ChatMessage[];

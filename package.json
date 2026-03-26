@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "bun run dev:tui",
     "dev:tui": "bun run --watch src/interfaces/tui/index.tsx",
-    "dev:web": "bash -lc 'WEB_DEV_SERVER_URL=http://localhost:5173 bun --hot src/interfaces/web/server.ts & bunx vite --host localhost --port 5173 --strictPort; kill 0'",
+    "dev:web": "concurrently -n api,vite -c blue,green --kill-others \"WEB_DEV_SERVER_URL=http://localhost:5173 bun --hot src/interfaces/web/server.ts\" \"bunx vite --host localhost --port 5173 --strictPort\"",
     "dev:css": "bunx vite --host localhost --port 5173 --strictPort",
     "prepare": "husky",
     "lint": "biome lint .",
@@ -24,7 +24,6 @@
     "test": "bun test"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^5.0.4",
     "@biomejs/biome": "^2.4.8",
     "@tailwindcss/vite": "^4.2.2",
     "@types/bun": "latest",
@@ -32,6 +31,8 @@
     "@types/node": "^25.3.1",
     "@types/react-dom": "^19.2.3",
     "@types/yargs": "^17.0.35",
+    "@vitejs/plugin-react": "^5.0.4",
+    "concurrently": "^9.2.1",
     "husky": "^9.1.7",
     "vite": "^7.1.10"
   },
@@ -45,6 +46,7 @@
     "@ai-sdk/openai": "^3.0.34",
     "@libsql/client": "^0.17.0",
     "@notionhq/client": "^5.9.0",
+    "@tanstack/react-query": "^5.95.2",
     "@types/react": "^19.2.14",
     "ai": "^6.0.101",
     "chalk": "^5.6.2",

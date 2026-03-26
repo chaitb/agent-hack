@@ -34,7 +34,7 @@ export async function createAppRuntime(options: CreateAppRuntimeOptions = {}): P
 			telegram = new TelegramAdapter(agent, db);
 			telegram.start();
 			agent.setChannels({
-				telegram: (message) => telegram?.send(message),
+				telegram: (message) => telegram?.send(message) ?? Promise.resolve(),
 			});
 		} catch {
 			logger.push("system", "Telegram: no token, skipping");

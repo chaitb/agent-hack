@@ -1,33 +1,37 @@
-import type { Memory } from "../../../core/model";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { ButtonPill, Card, StatusPill, uiFontClass } from "../components";
+import { fetchMemories, queryKeys } from "./api";
 
 const MEMORY_CATEGORIES = ["all", "fact", "preference", "skill", "context"] as const;
 
-export function MemoryRoute({
-	memories,
-	memoryCategory,
-	isMemoryLoading,
-	onCategoryChange,
-}: {
-	memories: Memory[];
-	memoryCategory: string;
-	isMemoryLoading: boolean;
-	onCategoryChange: (category: string) => void;
-}) {
+export function MemoryRoute() {
+	const [category, setCategory] = useState<string>("all");
+	const memoriesQuery = useQuery({
+		queryKey: queryKeys.memories(category),
+		queryFn: () => fetchMemories(category),
+	});
+
+	const memories = memoriesQuery.data ?? [];
+
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex flex-wrap gap-2">
-				{MEMORY_CATEGORIES.map((category) => (
+				{MEMORY_CATEGORIES.map((value) => (
 					<ButtonPill
-						key={category}
-						onClick={() => onCategoryChange(category)}
-						className={memoryCategory === category ? "bg-accent/40" : undefined}
+						key={value}
+						onClick={() => setCategory(value)}
+						className={category === value ? "bg-accent/40" : undefined}
 					>
-						{category.toUpperCase()}
+						{value.toUpperCase()}
 					</ButtonPill>
 				))}
 			</div>
-			{isMemoryLoading ? (
+			{memoriesQuery.error instanceof Error ? (
+				<Card>
+					<p className="text-red-500">{memoriesQuery.error.message}</p>
+				</Card>
+			) : memoriesQuery.isPending ? (
 				<Card>
 					<p className="text-muted-primary">Loading memories...</p>
 				</Card>

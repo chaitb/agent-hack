@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { type LogCategory, type LogEntry, logger } from "../../core/logger";
+import { logger } from "../../core/logger";
+import type { LogCategory, LogEntry } from "../../core/model";
 
 export function useLogger(category?: LogCategory): LogEntry[] {
 	const [entries, setEntries] = useState<LogEntry[]>(

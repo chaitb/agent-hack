@@ -14,7 +14,36 @@ import type {
 	ToolResult,
 	ToolUsage,
 } from "../core/model";
-import { buildEmbeddingText, vectorToSql } from "./embeddings";
+import { buildEmbeddingText } from "./embeddings";
+import { listInstructions, upsertInstruction } from "./queries/instructionQueries";
+import {
+	bm25SearchMemories,
+	forgetMemory,
+	listAllMemories,
+	listMemoriesByCategory,
+	listMemoriesForReindex,
+	listMemoriesMissingEmbeddings,
+	recallMemory,
+	updateMemoryEmbedding,
+	upsertMemory,
+	vectorSearchMemories,
+} from "./queries/memoryQueries";
+import {
+	clearMessages,
+	getMessageRoleAndSource,
+	hasMessageWithMetadata,
+	insertMessage,
+	listRecentMessages,
+	updateMessageContent,
+} from "./queries/messageQueries";
+import {
+	getTaskById,
+	insertTask,
+	listDueTasks,
+	listTasks,
+	updateTaskById,
+} from "./queries/taskQueries";
+import { insertToolUsage } from "./queries/toolUsageQueries";
 
 // Re-export all model types so existing `import from "./memory"` still works
 export type {
@@ -180,17 +209,7 @@ export class DB {
 			metadata,
 			created_at: new Date(),
 		};
-		await this.client.execute({
-			sql: `INSERT INTO messages (id, role, content, source, metadata, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
-			args: [
-				msg.id,
-				msg.role,
-				msg.content,
-				msg.source,
-				metadata ? JSON.stringify(metadata) : null,
-				msg.created_at.toISOString(),
-			],
-		});
+		await insertMessage(this.client, msg);
 
 		// Emit to chatBus so CLI and other UIs pick it up.
 		// Skip empty content (assistant placeholders created for tool_usage FK).
@@ -212,48 +231,33 @@ export class DB {
 	 * tools run so tool_usage can link to it).
 	 */
 	async updateMessageContent(id: string, content: string): Promise<void> {
-		await this.client.execute({
-			sql: `UPDATE messages SET content = ? WHERE id = ?`,
-			args: [content, id],
-		});
+		await updateMessageContent(this.client, id, content);
 
 		// Emit the final content on chatBus
-		const result = await this.client.execute({
-			sql: `SELECT role, source FROM messages WHERE id = ?`,
-			args: [id],
-		});
-		if (result.rows.length > 0) {
-			const row = result.rows[0]!;
-			const role = row.role as MessageRole;
+		const messageMeta = await getMessageRoleAndSource(this.client, id);
+		if (messageMeta) {
+			const role = messageMeta.role;
 			if (role === "user" || role === "assistant") {
 				chatBus.push({
 					id,
 					role,
 					content,
-					source: row.source as string,
+					source: messageMeta.source,
 				});
 			}
 		}
 	}
 
 	async getRecentMessages(limit = 20): Promise<Message[]> {
-		const result = await this.client.execute({
-			sql: `SELECT * FROM messages ORDER BY created_at DESC LIMIT ?`,
-			args: [limit],
-		});
-		return result.rows.reverse().map(rowToMessage);
+		return listRecentMessages(this.client, limit);
 	}
 
 	async hasMessageWithMetadata(key: string, value: string | number): Promise<boolean> {
-		const result = await this.client.execute({
-			sql: `SELECT 1 FROM messages WHERE json_extract(metadata, ?) = ? LIMIT 1`,
-			args: [`$.${key}`, String(value)],
-		});
-		return result.rows.length > 0;
+		return hasMessageWithMetadata(this.client, key, value);
 	}
 
 	async clearMessages(): Promise<void> {
-		await this.client.execute("DELETE FROM messages");
+		await clearMessages(this.client);
 	}
 
 	async clearAllData(): Promise<void> {
@@ -276,63 +280,23 @@ export class DB {
 	): Promise<void> {
 		const id = randomUUID();
 		const now = new Date().toISOString();
-		if (embedding) {
-			await this.client.execute({
-				sql: `INSERT INTO memory (id, key, value, category, embedding, updated_at)
-				      VALUES (?, ?, ?, ?, vector(?), ?)
-				      ON CONFLICT(key) DO UPDATE SET
-				        value = excluded.value,
-				        category = excluded.category,
-				        embedding = excluded.embedding,
-				        updated_at = excluded.updated_at`,
-				args: [id, key, value, category, vectorToSql(embedding), now],
-			});
-		} else {
-			await this.client.execute({
-				sql: `INSERT INTO memory (id, key, value, category, updated_at)
-				      VALUES (?, ?, ?, ?, ?)
-				      ON CONFLICT(key) DO UPDATE SET
-				        value = excluded.value,
-				        category = excluded.category,
-				        updated_at = excluded.updated_at`,
-				args: [id, key, value, category, now],
-			});
-		}
+		await upsertMemory(this.client, { id, key, value, category, embedding, updatedAt: now });
 	}
 
 	async recall(key: string): Promise<string | null> {
-		// Increment access_count on hit
-		const result = await this.client.execute({
-			sql: `UPDATE memory SET access_count = access_count + 1
-			      WHERE key = ? RETURNING value`,
-			args: [key],
-		});
-		if (result.rows.length === 0) return null;
-		return result.rows[0]?.value as string;
+		return recallMemory(this.client, key);
 	}
 
 	async forget(key: string): Promise<boolean> {
-		const result = await this.client.execute({
-			sql: `DELETE FROM memory WHERE key = ?`,
-			args: [key],
-		});
-		return result.rowsAffected > 0;
+		return forgetMemory(this.client, key);
 	}
 
 	async getAllMemories(): Promise<Memory[]> {
-		const result = await this.client.execute(`SELECT * FROM memory ORDER BY updated_at DESC`);
-		return result.rows.map(rowToMemory);
+		return listAllMemories(this.client);
 	}
 
 	async getMemoriesByCategory(category: MemoryCategory, limit?: number): Promise<Memory[]> {
-		let sql = `SELECT * FROM memory WHERE category = ? ORDER BY updated_at DESC`;
-		const args: (string | number)[] = [category];
-		if (limit) {
-			sql += ` LIMIT ?`;
-			args.push(limit);
-		}
-		const result = await this.client.execute({ sql, args });
-		return result.rows.map(rowToMemory);
+		return listMemoriesByCategory(this.client, category, limit);
 	}
 
 	async vectorSearch(
@@ -340,42 +304,11 @@ export class DB {
 		limit = 10,
 		category?: MemoryCategory,
 	): Promise<ScoredMemory[]> {
-		const vecStr = vectorToSql(queryEmbedding);
-		let sql = `SELECT *, vector_distance_cos(embedding, vector(?)) AS distance
-		           FROM memory WHERE embedding IS NOT NULL`;
-		const args: (string | number)[] = [vecStr];
-		if (category) {
-			sql += ` AND category = ?`;
-			args.push(category);
-		}
-		sql += ` ORDER BY distance ASC LIMIT ?`;
-		args.push(limit);
-		const result = await this.client.execute({ sql, args });
-		return result.rows.map((row) => ({
-			...rowToMemory(row),
-			// cosine distance → similarity: 1 - distance (lower distance = more similar)
-			score: 1 - ((row.distance as number) ?? 1),
-		}));
+		return vectorSearchMemories(this.client, queryEmbedding, limit, category);
 	}
 
 	async bm25Search(query: string, limit = 10, category?: MemoryCategory): Promise<ScoredMemory[]> {
-		let sql = `SELECT m.*, bm25(memory_fts) AS rank
-			      FROM memory_fts f
-			      JOIN memory m ON m.rowid = f.rowid
-			      WHERE memory_fts MATCH ?`;
-		const args: (string | number)[] = [query];
-		if (category) {
-			sql += ` AND m.category = ?`;
-			args.push(category);
-		}
-		sql += ` ORDER BY rank LIMIT ?`;
-		args.push(limit);
-		const result = await this.client.execute({ sql, args });
-		return result.rows.map((row) => ({
-			...rowToMemory(row),
-			// BM25 returns negative scores (lower = better), normalize to 0-1
-			score: Math.max(0, 1 + (row.rank as number) * 0.1),
-		}));
+		return bm25SearchMemories(this.client, query, limit, category);
 	}
 
 	/**
@@ -430,22 +363,20 @@ export class DB {
 		embedFn: (text: string) => Promise<number[]>,
 		onProgress?: (completed: number, total: number, key: string) => void,
 	): Promise<number> {
-		const result = await this.client.execute(
-			`SELECT id, key, value, category FROM memory WHERE embedding IS NULL`,
-		);
-		return this.reindexRows(result.rows, embedFn, onProgress);
+		const rows = await listMemoriesMissingEmbeddings(this.client);
+		return this.reindexRows(rows, embedFn, onProgress);
 	}
 
 	async reindexAllEmbeddings(
 		embedFn: (text: string) => Promise<number[]>,
 		onProgress?: (completed: number, total: number, key: string) => void,
 	): Promise<number> {
-		const result = await this.client.execute(`SELECT id, key, value, category FROM memory`);
-		return this.reindexRows(result.rows, embedFn, onProgress);
+		const rows = await listMemoriesForReindex(this.client);
+		return this.reindexRows(rows, embedFn, onProgress);
 	}
 
 	private async reindexRows(
-		rows: { [column: string]: unknown }[],
+		rows: Array<{ id: string; key: string; value: string; category: string }>,
 		embedFn: (text: string) => Promise<number[]>,
 		onProgress?: (completed: number, total: number, key: string) => void,
 	): Promise<number> {
@@ -458,12 +389,9 @@ export class DB {
 				row.category as string,
 			);
 			const embedding = await embedFn(text);
-			await this.client.execute({
-				sql: `UPDATE memory SET embedding = vector(?) WHERE id = ?`,
-				args: [vectorToSql(embedding), row.id as string],
-			});
+			await updateMemoryEmbedding(this.client, row.id, embedding);
 			count++;
-			onProgress?.(count, total, row.key as string);
+			onProgress?.(count, total, row.key);
 		}
 		return count;
 	}
@@ -479,54 +407,29 @@ export class DB {
 	}): Promise<Task> {
 		const id = randomUUID();
 		const now = new Date().toISOString();
-		await this.client.execute({
-			sql: `INSERT INTO tasks (id, title, description, status, priority, scheduled_at, recurrence, created_at, updated_at)
-			      VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?)`,
-			args: [
-				id,
-				params.title,
-				params.description ?? "",
-				params.priority ?? 5,
-				params.scheduled_at ?? null,
-				params.recurrence ?? null,
-				now,
-				now,
-			],
+		await insertTask(this.client, {
+			id,
+			title: params.title,
+			description: params.description ?? "",
+			priority: params.priority ?? 5,
+			scheduled_at: params.scheduled_at ?? null,
+			recurrence: params.recurrence ?? null,
+			created_at: now,
+			updated_at: now,
 		});
 		return (await this.getTask(id))!;
 	}
 
 	async getTask(id: string): Promise<Task | null> {
-		const result = await this.client.execute({
-			sql: `SELECT * FROM tasks WHERE id = ?`,
-			args: [id],
-		});
-		if (result.rows.length === 0) return null;
-		return rowToTask(result.rows[0]!);
+		return getTaskById(this.client, id);
 	}
 
 	async listTasks(filter?: { status?: TaskStatus; limit?: number }): Promise<Task[]> {
-		let sql = `SELECT * FROM tasks`;
-		const args: (string | number)[] = [];
-		if (filter?.status) {
-			sql += ` WHERE status = ?`;
-			args.push(filter.status);
-		}
-		sql += ` ORDER BY priority DESC, scheduled_at ASC`;
-		if (filter?.limit) {
-			sql += ` LIMIT ?`;
-			args.push(filter.limit);
-		}
-		const result = await this.client.execute({ sql, args });
-		return result.rows.map(rowToTask);
+		return listTasks(this.client, filter);
 	}
 
 	async getDueTasks(): Promise<Task[]> {
-		const result = await this.client.execute({
-			sql: `SELECT * FROM tasks WHERE status = 'pending' AND (scheduled_at IS NULL OR scheduled_at <= ?) ORDER BY priority DESC`,
-			args: [new Date().toISOString()],
-		});
-		return result.rows.map(rowToTask);
+		return listDueTasks(this.client, new Date().toISOString());
 	}
 
 	async updateTask(
@@ -545,44 +448,26 @@ export class DB {
 			>
 		>,
 	): Promise<Task | null> {
-		const sets: string[] = [];
-		const args: (string | number | null)[] = [];
-		for (const [key, value] of Object.entries(updates)) {
-			if (value !== undefined) {
-				sets.push(`${key} = ?`);
-				args.push(value instanceof Date ? value.toISOString() : (value as string | number | null));
-			}
+		if (Object.keys(updates).length === 0) {
+			return this.getTask(id);
 		}
-		if (sets.length === 0) return this.getTask(id);
-		sets.push("updated_at = ?");
-		args.push(new Date().toISOString());
-		args.push(id);
-		await this.client.execute({
-			sql: `UPDATE tasks SET ${sets.join(", ")} WHERE id = ?`,
-			args,
-		});
+		await updateTaskById(this.client, id, updates, new Date().toISOString());
 		return this.getTask(id);
 	}
 
 	// ─── Instructions ──────────────────────────────────────────────────────
 
 	async upsertInstruction(filename: string, description: string): Promise<void> {
-		const id = randomUUID();
-		await this.client.execute({
-			sql: `INSERT INTO instructions (id, filename, description, updated_at) VALUES (?, ?, ?, ?)
-			      ON CONFLICT(filename) DO UPDATE SET description = excluded.description, updated_at = excluded.updated_at`,
-			args: [id, filename, description, new Date().toISOString()],
+		await upsertInstruction(this.client, {
+			id: randomUUID(),
+			filename,
+			description,
+			updated_at: new Date().toISOString(),
 		});
 	}
 
 	async listInstructions(): Promise<InstructionRecord[]> {
-		const result = await this.client.execute(`SELECT * FROM instructions ORDER BY filename`);
-		return result.rows.map((row) => ({
-			id: row.id as string,
-			filename: row.filename as string,
-			description: row.description as string,
-			updated_at: new Date(row.updated_at as string),
-		}));
+		return listInstructions(this.client);
 	}
 
 	// ─── Tool Usage ────────────────────────────────────────────────────────
@@ -599,21 +484,17 @@ export class DB {
 	}): Promise<ToolUsage> {
 		const id = randomUUID();
 		const now = new Date();
-		await this.client.execute({
-			sql: `INSERT INTO tool_usage (id, message_id, namespace, name, input, result, output, error, duration_ms, created_at)
-			      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			args: [
-				id,
-				params.message_id ?? null,
-				params.namespace,
-				params.name,
-				JSON.stringify(params.input),
-				params.result,
-				params.output ? JSON.stringify(params.output) : null,
-				params.error ?? null,
-				params.duration_ms,
-				now.toISOString(),
-			],
+		await insertToolUsage(this.client, {
+			id,
+			message_id: params.message_id ?? null,
+			namespace: params.namespace,
+			name: params.name,
+			input: params.input,
+			result: params.result,
+			output: params.output ?? null,
+			error: params.error ?? null,
+			duration_ms: params.duration_ms,
+			created_at: now.toISOString(),
 		});
 		return {
 			id,
@@ -632,45 +513,4 @@ export class DB {
 	async close(): Promise<void> {
 		this.client.close();
 	}
-}
-
-// ─── Row Mappers ─────────────────────────────────────────────────────────────
-
-function rowToMessage(row: Record<string, unknown>): Message {
-	return {
-		id: row.id as string,
-		role: row.role as MessageRole,
-		content: row.content as string,
-		source: row.source as MessageSource,
-		metadata: row.metadata ? JSON.parse(row.metadata as string) : undefined,
-		created_at: new Date(row.created_at as string),
-	};
-}
-
-function rowToMemory(row: Record<string, unknown>): Memory {
-	return {
-		id: row.id as string,
-		key: row.key as string,
-		value: row.value as string,
-		category: row.category as MemoryCategory,
-		access_count: (row.access_count as number) ?? 0,
-		created_at: new Date((row.created_at as string) ?? (row.updated_at as string)),
-		updated_at: new Date(row.updated_at as string),
-	};
-}
-
-function rowToTask(row: Record<string, unknown>): Task {
-	return {
-		id: row.id as string,
-		title: row.title as string,
-		description: row.description as string,
-		status: row.status as TaskStatus,
-		priority: row.priority as number,
-		scheduled_at: row.scheduled_at ? new Date(row.scheduled_at as string) : null,
-		recurrence: row.recurrence as string | null,
-		last_run_at: row.last_run_at ? new Date(row.last_run_at as string) : null,
-		result: row.result as string | null,
-		created_at: new Date(row.created_at as string),
-		updated_at: new Date(row.updated_at as string),
-	};
 }

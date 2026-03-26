@@ -1,4 +1,6 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import { createRoot } from "react-dom/client";
+import { queryClient } from "./queryClient";
 import "./styles.css";
 import { ThemeProvider } from "./theme";
 import { WebApp } from "./WebApp";
@@ -10,7 +12,9 @@ if (!rootElement) {
 }
 
 createRoot(rootElement).render(
-	<ThemeProvider>
-		<WebApp />
-	</ThemeProvider>,
+	<QueryClientProvider client={queryClient}>
+		<ThemeProvider>
+			<WebApp />
+		</ThemeProvider>
+	</QueryClientProvider>,
 );

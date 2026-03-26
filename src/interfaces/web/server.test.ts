@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { ChatMessage } from "../../core/chat";
+import type { ChatMessage } from "../../core/model";
 import { createWebHandler } from "./server";
 
 const history: ChatMessage[] = [

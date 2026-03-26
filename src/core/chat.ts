@@ -1,8 +1,6 @@
 import type { DB } from "../persistence/database";
 import type { Agent } from "./agent";
-import type { Message, MessageRole, MessageSource } from "./model";
-
-export type ChatMessage = Pick<Message, "id" | "role" | "content" | "source">;
+import type { ChatMessage, Message, MessageRole, MessageSource } from "./model";
 
 function isChatRole(role: MessageRole): role is "user" | "assistant" | "system" {
 	return role === "user" || role === "assistant" || role === "system";

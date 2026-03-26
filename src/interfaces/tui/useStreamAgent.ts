@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ChatMessage, ChatService } from "../../core/chat";
+import type { ChatService } from "../../core/chat";
 import { type ChatEvent, chatBus } from "../../core/logger";
-import type { Message } from "../../core/model";
+import type { ChatMessage, Message } from "../../core/model";
 
 export function useStreamAgent(chatService: ChatService | undefined) {
 	const [messages, setMessages] = useState<ChatMessage[]>([]);

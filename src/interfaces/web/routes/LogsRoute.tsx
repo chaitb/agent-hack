@@ -1,33 +1,37 @@
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { ButtonPill, Card, uiFontClass } from "../components";
-import type { LogItem } from "./types";
+import { fetchLogs, queryKeys } from "./api";
 
 const LOG_CATEGORIES = ["all", "system", "tool", "heartbeat", "communication", "info"] as const;
 
-export function LogsRoute({
-	logs,
-	logCategory,
-	isLogsLoading,
-	onCategoryChange,
-}: {
-	logs: LogItem[];
-	logCategory: string;
-	isLogsLoading: boolean;
-	onCategoryChange: (category: string) => void;
-}) {
+export function LogsRoute() {
+	const [category, setCategory] = useState<string>("all");
+	const logsQuery = useQuery({
+		queryKey: queryKeys.logs(category),
+		queryFn: () => fetchLogs(category),
+	});
+
+	const logs = logsQuery.data ?? [];
+
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex flex-wrap gap-2">
-				{LOG_CATEGORIES.map((category) => (
+				{LOG_CATEGORIES.map((value) => (
 					<ButtonPill
-						key={category}
-						onClick={() => onCategoryChange(category)}
-						className={logCategory === category ? "bg-accent/40" : undefined}
+						key={value}
+						onClick={() => setCategory(value)}
+						className={category === value ? "bg-accent/40" : undefined}
 					>
-						{category.toUpperCase()}
+						{value.toUpperCase()}
 					</ButtonPill>
 				))}
 			</div>
-			{isLogsLoading ? (
+			{logsQuery.error instanceof Error ? (
+				<Card>
+					<p className="text-red-500">{logsQuery.error.message}</p>
+				</Card>
+			) : logsQuery.isPending ? (
 				<Card>
 					<p className="text-muted-primary">Loading logs...</p>
 				</Card>

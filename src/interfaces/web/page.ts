@@ -1,4 +1,4 @@
-import type { ChatMessage } from "../../core/chat";
+import type { ChatMessage } from "../../core/model";
 
 export interface ChatPageAssets {
 	cssHref?: string;

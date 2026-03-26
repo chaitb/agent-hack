@@ -1,8 +1,11 @@
 import "dotenv/config";
-import { resolve } from "node:path";
+import { readdir, readFile, stat } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { Hono } from "hono";
+import { logger as honoLogger } from "hono/logger";
 import type { ChatService } from "../../core/chat";
-import { type LogCategory, logger } from "../../core/logger";
+import { logger } from "../../core/logger";
+import type { ArtifactContent, ArtifactExtension, LogCategory } from "../../core/model";
 import type { DB } from "../../persistence/database";
 import { getEmbedding } from "../../persistence/embeddings";
 import { createAppRuntime } from "../../runtime/createAppRuntime";
@@ -12,6 +15,23 @@ const SSE_HEADERS = {
 	"Cache-Control": "no-cache, no-transform",
 	Connection: "keep-alive",
 	"Content-Type": "text/event-stream",
+};
+
+const ARTIFACTS_DIR = process.env.ARTIFACTS_DIR
+	? resolve(process.cwd(), process.env.ARTIFACTS_DIR)
+	: resolve(process.cwd(), "artifacts");
+
+const ARTIFACT_CONTENT_TYPES: Record<ArtifactExtension, string> = {
+	".html": "text/html; charset=utf-8",
+	".css": "text/css; charset=utf-8",
+	".json": "application/json; charset=utf-8",
+	".csv": "text/csv; charset=utf-8",
+	".ts": "text/typescript; charset=utf-8",
+	".tsx": "text/typescript; charset=utf-8",
+	".js": "text/javascript; charset=utf-8",
+	".jsx": "text/javascript; charset=utf-8",
+	".md": "text/markdown; charset=utf-8",
+	".txt": "text/plain; charset=utf-8",
 };
 
 export interface WebHandlerDependencies {
@@ -55,6 +75,60 @@ function contentTypeForPath(pathname: string): string {
 		return "text/javascript; charset=utf-8";
 	}
 	return "application/octet-stream";
+}
+
+function getArtifactIdFromFilename(filename: string): string {
+	const lastDot = filename.lastIndexOf(".");
+	return lastDot >= 0 ? filename.slice(0, lastDot) : filename;
+}
+
+function getArtifactExtension(filename: string): ArtifactExtension | null {
+	const lastDot = filename.lastIndexOf(".");
+	const extension = (lastDot >= 0 ? filename.slice(lastDot) : ".txt") as ArtifactExtension;
+	return extension in ARTIFACT_CONTENT_TYPES ? extension : null;
+}
+
+async function listArtifacts() {
+	const entries = await readdir(ARTIFACTS_DIR, { withFileTypes: true });
+
+	return Promise.all(
+		entries
+			.filter((entry) => entry.isFile())
+			.map(async (entry) => {
+				const fullPath = join(ARTIFACTS_DIR, entry.name);
+				const fileStat = await stat(fullPath);
+				const id = getArtifactIdFromFilename(entry.name);
+
+				return {
+					id,
+					filename: entry.name,
+					url: `/api/artifacts/${id}/${entry.name}`,
+					path: fullPath,
+					created_at: fileStat.birthtime.toISOString(),
+				};
+			}),
+	);
+}
+
+async function getArtifactById(id: string): Promise<ArtifactContent | null> {
+	const artifacts = await listArtifacts();
+	const artifact = artifacts.find((entry) => entry.id === id);
+	if (!artifact) {
+		return null;
+	}
+
+	const content = await readFile(artifact.path, "utf-8");
+	const extension = getArtifactExtension(artifact.filename) ?? ".txt";
+
+	return {
+		id: artifact.id,
+		filename: artifact.filename,
+		extension,
+		path: artifact.path,
+		url: artifact.url,
+		created_at: artifact.created_at,
+		content,
+	};
 }
 
 function parseMessageLimit(raw: string | undefined): number {
@@ -155,6 +229,8 @@ export function createWebHandler({ chatService, db, assetDir }: WebHandlerDepend
 	const pageAssets = resolvePageAssets(webDevServerUrl);
 	const app = new Hono();
 
+	app.use("*", honoLogger());
+
 	const serveWebUi = () =>
 		new Response(renderChatPage([], pageAssets), {
 			headers: {
@@ -173,6 +249,8 @@ export function createWebHandler({ chatService, db, assetDir }: WebHandlerDepend
 	app.get("/chat", () => serveWebUi());
 	app.get("/memory", () => serveWebUi());
 	app.get("/recall", () => serveWebUi());
+	app.get("/artifacts", () => serveWebUi());
+	app.get("/artifacts/:id", () => serveWebUi());
 	app.get("/logs", () => serveWebUi());
 
 	app.get("/assets/:fileName", async (context) => {
@@ -238,6 +316,47 @@ export function createWebHandler({ chatService, db, assetDir }: WebHandlerDepend
 		return context.json({ logs: entries.slice(-limit) });
 	});
 
+	app.get("/api/artifacts/:id", async (context) => {
+		try {
+			const artifact = await getArtifactById(context.req.param("id"));
+			if (!artifact) {
+				return context.json({ error: "Artifact not found" }, 404);
+			}
+
+			return context.json(artifact);
+		} catch (err) {
+			return context.json({ error: (err as Error).message }, 500);
+		}
+	});
+
+	app.get("/api/artifacts/:id/:filename", async (context) => {
+		const id = context.req.param("id");
+		const filename = context.req.param("filename");
+
+		try {
+			const artifact = await getArtifactById(id);
+			if (!artifact || artifact.filename !== filename) {
+				return context.json({ error: "Artifact not found" }, 404);
+			}
+
+			return new Response(artifact.content, {
+				headers: {
+					"Content-Type": ARTIFACT_CONTENT_TYPES[artifact.extension] ?? "text/plain; charset=utf-8",
+				},
+			});
+		} catch (err) {
+			return context.json({ error: (err as Error).message }, 500);
+		}
+	});
+
+	app.get("/api/artifacts", async (context) => {
+		try {
+			return context.json({ artifacts: await listArtifacts() });
+		} catch {
+			return context.json({ artifacts: [] });
+		}
+	});
+
 	app.post("/api/chat", async (context) => {
 		let payload: unknown;
 		try {
@@ -269,7 +388,7 @@ export function createWebHandler({ chatService, db, assetDir }: WebHandlerDepend
 export async function startWebServer() {
 	const runtime = await createAppRuntime({
 		startHeartbeat: false,
-		startTelegram: false,
+		startTelegram: true,
 	});
 
 	const port = Number(process.env.PORT ?? 3000);

@@ -1,4 +1,5 @@
 import type { DB } from "../../persistence/database";
+import { createArtifactTools } from "./artifacts";
 import { type CommChannels, createCommunicationTools } from "./communication";
 import { createFileTools } from "./files";
 import { createMemoryTools } from "./memory";
@@ -14,6 +15,7 @@ export function createAllTools(db: DB, channels: CommChannels = {}) {
 		...createCommunicationTools(db, channels),
 		...createNotionTools(db),
 		...createUtilityTools(db),
+		...createArtifactTools(db),
 	};
 }
 

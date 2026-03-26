@@ -1,15 +1,7 @@
 import { EventEmitter } from "node:events";
 import { appendFile, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
-
-export type LogCategory = "tool" | "heartbeat" | "system" | "communication" | "info";
-
-export interface LogEntry {
-	id: number;
-	category: LogCategory;
-	message: string;
-	timestamp: Date;
-}
+import type { LogCategory, LogEntry } from "./model";
 
 const LOG_DIR = resolve(process.cwd(), "logs");
 const LOG_FILE = resolve(LOG_DIR, "agent.log");

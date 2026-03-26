@@ -142,6 +142,17 @@ Without Turso connectivity, the runtime entrypoints will fail to boot.
   - core should own agent/chat behavior
   - persistence should own DB concerns
   - runtime should compose dependencies
+- Web data fetching rules:
+  - Use TanStack Query for web API reads.
+  - Keep query usage ergonomic: only one `useQuery` call per file.
+  - Keep file size constrained: maximum two React components per file.
+  - If a route needs multiple query-backed sections, split them into smaller files and use folders under `src/interfaces/web/components/` when grouping related UI.
+- Persistence query organization:
+  - Put object-specific persistence helpers in separate files under `src/persistence/queries/` such as `messageQueries.ts`, `memoryQueries.ts`, `taskQueries.ts`, and related modules.
+  - Prefer `DB` methods to delegate SQL work to those query modules instead of keeping all SQL inline in `database.ts`.
+- Shared types:
+  - Any type shared across layers must live in `src/core/model/` and be re-exported from `src/core/model/index.ts`.
+  - Do not define shared API payload or record types inside interface-only files when they are used across server, persistence, or client layers.
 - When adding new tools, put them under `src/core/tools/` and wire them through `src/core/tools/index.ts`.
 - When adding new message sources, update `src/core/model/message.ts` and verify persistence/UI handling.
 - Prefer small, testable helpers for web request handling. `createWebHandler()` is the pattern to follow.

@@ -9,3 +9,5 @@ export interface Message {
 	metadata?: Record<string, unknown>;
 	created_at: Date;
 }
+
+export type ChatMessage = Pick<Message, "id" | "role" | "content" | "source">;
