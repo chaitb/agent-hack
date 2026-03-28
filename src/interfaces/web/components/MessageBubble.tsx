@@ -1,3 +1,4 @@
+import ReactMarkdown from "react-markdown";
 import { cx, uiFontClass } from "./utils";
 
 export function MessageBubble({
@@ -28,13 +29,15 @@ export function MessageBubble({
 			>
 				<p
 					className={cx(
-						"mb-1 text-[0.72rem] font-bold uppercase tracking-[0.16em] text-muted-primary",
+						"mb-2 text-[0.72rem] font-bold uppercase tracking-[0.16em] text-muted-primary",
 						uiFontClass,
 					)}
 				>
 					{label} / {source}
 				</p>
-				<p className="whitespace-pre-wrap leading-7">{content || (isStreaming ? "..." : "")}</p>
+				<div className="tracking-normal">
+					{content ? <ReactMarkdown>{content}</ReactMarkdown> : isStreaming ? "..." : ""}
+				</div>
 			</div>
 		</div>
 	);

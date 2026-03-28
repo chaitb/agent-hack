@@ -27,7 +27,7 @@ export function LogsRoute() {
 					</ButtonPill>
 				))}
 			</div>
-			{logsQuery.error instanceof Error ? (
+			{logsQuery.isError ? (
 				<Card>
 					<p className="text-red-500">{logsQuery.error.message}</p>
 				</Card>

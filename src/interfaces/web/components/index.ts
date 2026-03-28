@@ -1,6 +1,7 @@
 export * from "./Card";
 export * from "./ChatSubmitMessage";
 export * from "./ChromePanel";
+export * from "./DefaultLayout";
 export * from "./Eyebrow";
 export * from "./MessageBubble";
 export * from "./ModeToggle";

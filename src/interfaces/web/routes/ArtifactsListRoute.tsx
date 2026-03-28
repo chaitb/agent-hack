@@ -11,7 +11,7 @@ export function ArtifactsListRoute() {
 
 	const artifacts = artifactsQuery.data ?? [];
 
-	if (artifactsQuery.error instanceof Error) {
+	if (artifactsQuery.isError) {
 		return (
 			<Card>
 				<p className="text-red-500">{artifactsQuery.error.message}</p>
@@ -43,10 +43,10 @@ export function ArtifactsListRoute() {
 					<Link key={artifact.id} href={`/artifacts/${artifact.id}`}>
 						<Card className="cursor-pointer space-y-2 transition-colors hover:border-accent">
 							<div className="flex items-center justify-between">
-								<p className={`text-sm text-primary ${uiFontClass}`}>{artifact.filename}</p>
+								<p className={`text-2xl text-primary ${uiFontClass}`}>{artifact.filename}</p>
 								<StatusPill>{ext.replace(".", "")}</StatusPill>
 							</div>
-							<p className="text-xs text-muted-primary">{artifact.url}</p>
+							{/*{artifact.created_at}*/}
 						</Card>
 					</Link>
 				);

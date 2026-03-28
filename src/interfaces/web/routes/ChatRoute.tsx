@@ -105,7 +105,7 @@ export function ChatRoute() {
 			<ChatSubmitMessage
 				draft={draft}
 				isStreaming={isStreaming}
-				error={error ?? (messagesQuery.error instanceof Error ? messagesQuery.error.message : null)}
+				error={error ?? (messagesQuery.isError ? messagesQuery.error.message : null)}
 				onChange={setDraft}
 				onSubmit={handleSubmit}
 			/>

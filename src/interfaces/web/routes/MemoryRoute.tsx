@@ -27,7 +27,7 @@ export function MemoryRoute() {
 					</ButtonPill>
 				))}
 			</div>
-			{memoriesQuery.error instanceof Error ? (
+			{memoriesQuery.isError ? (
 				<Card>
 					<p className="text-red-500">{memoriesQuery.error.message}</p>
 				</Card>

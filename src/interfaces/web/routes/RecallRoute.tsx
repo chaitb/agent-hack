@@ -50,9 +50,7 @@ export function RecallRoute() {
 						{recallQuery.isFetching ? "Checking" : "Test Recall"}
 					</button>
 				</form>
-				{recallQuery.error instanceof Error && (
-					<p className="text-sm text-red-500">{recallQuery.error.message}</p>
-				)}
+				{recallQuery.isError && <p className="text-sm text-red-500">{recallQuery.error.message}</p>}
 			</Card>
 			{recallQuery.data && (
 				<Card className="space-y-2">
